@@ -39,9 +39,13 @@ int create_threads(shared_data_t* shared_data);
 void* start_race(void* data);
 void* finish_race(void* data);
 
+pthread_attr_t attr;
+
 
 int main(int argc, char* argv[])
 {
+	pthread_attr_init(&attr);
+	pthread_attr_setschedpolicy(&attr, SCHED_RR);
 	shared_data_t* shared_data = (shared_data_t*) calloc(1, sizeof(shared_data_t));
 	if ( shared_data == NULL )
 		return (void)fprintf(stderr, "error: could not allocate shared memory\n"), 1;
@@ -129,7 +133,7 @@ int create_threads(shared_data_t* shared_data)
 	{
 		private_data[index].my_team_number = index;
 		private_data[index].shared_data = shared_data;
-		pthread_create(&threads[index], NULL, start_race, &private_data[index]);
+		pthread_create(&threads[index], &attr, start_race, &private_data[index]);
 	}
 
   #if INVERTED_TEAM_ORDER
@@ -140,7 +144,7 @@ int create_threads(shared_data_t* shared_data)
 	{
 		private_data[index].my_team_number = index - shared_data->team_count;
 		private_data[index].shared_data = shared_data;
-		pthread_create(&threads[index], NULL, finish_race, &private_data[index]);
+		pthread_create(&threads[index], &attr, finish_race, &private_data[index]);
 	}
 
 	for ( size_t index = 0; index < thread_count; ++index )
