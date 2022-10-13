@@ -25,28 +25,24 @@ typedef struct
     int direction; // 0 izquierda - 1 derecha
 } ship ;
 
-typedef struct
-{
-	int shipNumber;
-} shared_data_t;
-
-void printArray(int *array, int length){
-    int loop;
-    for(loop = 0; loop < length; loop++)
-      printf("%d ", array[loop]);
-      
-   printf("\n");
-}
 
 void *routine(void* data);
 
-int array[5] = {0, 0, 0, 0, 0}; //canal
+int channel[5] = {0, 0, 0, 0, 0}; //canal
 
 sem_t sem;
 
 int shipCount;
 
 pthread_barrier_t barrier; 
+
+void printchannel(int *channel, int length){
+    int loop;
+    for(loop = 0; loop < length; loop++)
+      printf("%d ", channel[loop]);
+      
+   printf("\n");
+}
 
 int main(){
 
@@ -114,19 +110,19 @@ void *routine(void *data){
     printf("ID... %d, Type: %s\n", s->id, s->type);
 
     int i;
-    int length = sizeof array / sizeof *array;
+    int length = sizeof channel / sizeof *channel;
     int sleepTime = length / s->velocity;
     for (i = 0; i < length; i++)
     {   
 
         sem_wait(&sem);
-        if(array[s->pos+1] == 0){ // esta disponible
-            array[s->pos+1] = s->id;
+        if(channel[s->pos+1] == 0){ // esta disponible
+            channel[s->pos+1] = s->id;
             s->pos++;
             if(s->pos >= 1)
-                array[s->pos - 1] = 0;
+                channel[s->pos - 1] = 0;
             printf("---------------\n");
-            printArray(array, length);
+            printchannel(channel, length);
             printf(KBLU "My id is %d\n" RESET, s->id);
             printf("---------------\n");
             sem_post(&sem);
@@ -137,6 +133,6 @@ void *routine(void *data){
         }
       
     }
-    array[length - 1] = 0;
+    channel[length - 1] = 0;
     printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 }
