@@ -54,7 +54,7 @@ int main(int argc, char *argv[]){
         // Error: initialization failed
         perror("Error: initialization failed");
     }
-    
+
     createShips("barcos.txt");
 
     sem_close(&sem);
@@ -71,7 +71,7 @@ void *routine(void *data){
 
     int i;
     int length = sizeof channel / sizeof *channel;
-    int sleepTime = length / s->velocity;
+    int sleepTime = (length / s->velocity)*1e6;
     for (i = 0; i < length; i++)
     {   
 
@@ -81,13 +81,16 @@ void *routine(void *data){
             s->pos++;
             if(s->pos >= 1)
                 channel[s->pos - 1] = 0;
-            sem_post(&sem); 
+            
             printf("---------------\n");
             printArray(channel, length);
             printf(KBLU "My id is %d\n" RESET, s->id);
             printf("---------------\n");
             
-            sleep(sleepTime);
+            sem_post(&sem); // el post se debe hacer antes de los prints
+                            // pero por cuestiones de desarrollo, se necesita
+                            // ahi mientras tanto, para poder ver el comportamiento
+            usleep(sleepTime);
         } else{
             i--;
             sem_post(&sem); 
