@@ -22,15 +22,17 @@ typedef struct
     int velocity;
     int pos; // por donde va dentro del canal
     int id;
-    //int direction; // 0 izquierda - 1 derecha
+    int direction; // 0 izquierda - 1 derecha
 } ship ;
 
 
 void *routine(void* data);
+void moverHaciaIzquierda(ship *s);
+void moverHaciaDerecha(ship *s);
 
 int channel[5] = {0, 0, 0, 0, 0}; //canal
 
-sem_t sem;
+sem_t sem, sem_lado;
 
 int shipCount, defaultVel = 5;
 
@@ -49,7 +51,7 @@ void createShips(char *path);
 int main(int argc, char *argv[]){
 
     shipCount = 0;
-    if ( sem_init(&sem, 0, 1) != 0 )
+    if ( sem_init(&sem, 0, 1) != 0 || sem_init(&sem_lado, 0, 1) != 0)
     {
         // Error: initialization failed
         perror("Error: initialization failed");
@@ -58,6 +60,7 @@ int main(int argc, char *argv[]){
     createShips("barcos.txt");
 
     sem_close(&sem);
+    sem_close(&sem_lado);
 
     return 0;
 }
@@ -67,38 +70,13 @@ void *routine(void *data){
     //pthread_barrier_wait(&barrier);
     ship* s = (ship*) data;
 
-    printf("ID... %d, Type: %s, Vel: %d\n", s->id, s->type, s->velocity);
+    printf("ID... %d, Type: %s, Vel: %d, Dir: %d\n", s->id, s->type, s->velocity, s->direction);
 
-    int i;
-    int length = sizeof channel / sizeof *channel;
-    int sleepTime = (length / s->velocity)*1e6;
-    for (i = 0; i < length; i++)
-    {   
-
-        sem_wait(&sem);
-        if(channel[s->pos+1] == 0){ // esta disponible
-            channel[s->pos+1] = s->id;
-            s->pos++;
-            if(s->pos >= 1)
-                channel[s->pos - 1] = 0;
-            
-            printf("---------------\n");
-            printArray(channel, length);
-            printf(KBLU "My id is %d\n" RESET, s->id);
-            printf("---------------\n");
-            
-            sem_post(&sem); // el post se debe hacer antes de los prints
-                            // pero por cuestiones de desarrollo, se necesita
-                            // ahi mientras tanto, para poder ver el comportamiento
-            usleep(sleepTime);
-        } else{
-            i--;
-            sem_post(&sem); 
-        }
-        
+    if(s->direction == 0){
+        moverHaciaDerecha(s);
+    } else{
+        moverHaciaIzquierda(s);
     }
-    channel[length - 1] = 0;
-    printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 }
 
 void createShips(char *path){
@@ -136,15 +114,17 @@ void createShips(char *path){
         //printf(KMAG "Ship type %s\n" RESET, ptr);
 
         ptr = strtok(NULL, delim);
-        if(strcmp(ptr, "izq") == 0){
+        if(strcmp(ptr, "izq\n") == 0){
             s->pos = -1;
+            s->direction = 0;
             if(pthread_create(&th_izq[contIzq], NULL, routine, &s[0]) != 0){
                 perror("Error creating the threads");
             };
             contIzq++;
         }
         else {
-            s->pos = -1;
+            s->pos = 5; // lenght
+            s->direction = 1;
             if(pthread_create(&th_der[contDer], NULL, routine, &s[0]) != 0){
                 perror("Error creating the threads");
             };
@@ -166,4 +146,76 @@ void createShips(char *path){
     
     // close the file
     fclose(fp);
+}
+
+void moverHaciaDerecha(ship *s){
+    //printf("ID... %d, Type: %s, Vel: %d\n", s->id, s->type, s->velocity);
+    sem_wait(&sem_lado);
+    int i;
+    int length = sizeof channel / sizeof *channel;
+    int sleepTime = (length / s->velocity)*1e6;
+    for (i = 0; i < length; i++)
+    {   
+
+        sem_wait(&sem);
+        if(channel[s->pos+1] == 0){ // esta disponible
+            channel[s->pos+1] = s->id;
+            s->pos++;
+            if(s->pos >= 1)
+                channel[s->pos - 1] = 0;
+            
+            printf("---------------\n");
+            printArray(channel, length);
+            printf(KBLU "My id is %d\n" RESET, s->id);
+            printf("---------------\n");
+            
+            sem_post(&sem); // el post se debe hacer antes de los prints
+                            // pero por cuestiones de desarrollo, se necesita
+                            // ahi mientras tanto, para poder ver el comportamiento
+            usleep(sleepTime);
+        } else{
+            i--;
+            sem_post(&sem); 
+        }
+        
+    }
+    channel[length - 1] = 0;
+    sem_post(&sem_lado);
+    printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
+}
+
+void moverHaciaIzquierda(ship *s){
+    //printf("ID... %d, Type: %s, Vel: %d\n", s->id, s->type, s->velocity);
+    sem_wait(&sem_lado);
+    int i;
+    int length = sizeof channel / sizeof *channel;
+    int sleepTime = (length / s->velocity)*1e6;
+    for (i = length - 1; i >= 0; i--)
+    {   
+
+        sem_wait(&sem);
+        if(channel[s->pos-1] == 0){ // esta disponible
+            channel[s->pos-1] = s->id;
+            s->pos--;
+
+            channel[s->pos + 1] = 0;
+            
+            printf("---------------\n");
+            printArray(channel, length);
+            printf(KBLU "My id is %d\n" RESET, s->id);
+            printf("---------------\n");
+            
+            sem_post(&sem); // el post se debe hacer antes de los prints
+                            // pero por cuestiones de desarrollo, se necesita
+                            // ahi mientras tanto, para poder ver el comportamiento
+            usleep(sleepTime);
+        } else{
+            i++;
+            sem_post(&sem); 
+        }
+        
+    }
+    channel[0] = 0;
+    sem_post(&sem_lado);
+    printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 }
