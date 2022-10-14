@@ -36,6 +36,8 @@ sem_t sem, sem_lado;
 
 int shipCount, defaultVel = 5;
 
+int contIzq = 0, contDer = 0;
+
 pthread_t th_der[2], th_izq[2];
 
 void printArray(int *channel, int length){
@@ -51,7 +53,7 @@ void createShips(char *path);
 int main(int argc, char *argv[]){
 
     shipCount = 0;
-    if ( sem_init(&sem, 0, 1) != 0 || sem_init(&sem_lado, 0, 1) != 0)
+    if ( sem_init(&sem, 0, 1) != 0 || sem_init(&sem_lado, 0, 2) != 0)
     {
         // Error: initialization failed
         perror("Error: initialization failed");
@@ -73,8 +75,10 @@ void *routine(void *data){
     printf("ID... %d, Type: %s, Vel: %d, Dir: %d\n", s->id, s->type, s->velocity, s->direction);
 
     if(s->direction == 0){
+        contIzq++;
         moverHaciaDerecha(s);
     } else{
+        contDer++;
         moverHaciaIzquierda(s);
     }
 }
@@ -149,11 +153,17 @@ void createShips(char *path){
 }
 
 void moverHaciaDerecha(ship *s){
+    int semValue;
+    sem_getvalue(&sem_lado, &semValue);
     //printf("ID... %d, Type: %s, Vel: %d\n", s->id, s->type, s->velocity);
+    if(contIzq == semValue){
+        printf("Hacia Der\n");
+    }
     sem_wait(&sem_lado);
+    contIzq--;
     int i;
     int length = sizeof channel / sizeof *channel;
-    int sleepTime = (length / s->velocity)*1e6;
+    int sleepTime = (int)( (length / s->velocity)*1e6 );
     for (i = 0; i < length; i++)
     {   
 
@@ -185,11 +195,17 @@ void moverHaciaDerecha(ship *s){
 }
 
 void moverHaciaIzquierda(ship *s){
+    int semValue;
+    sem_getvalue(&sem_lado, &semValue);
     //printf("ID... %d, Type: %s, Vel: %d\n", s->id, s->type, s->velocity);
+    if(contDer == semValue){
+        printf("Hacia Izq\n");
+    }
     sem_wait(&sem_lado);
+    contDer--;
     int i;
     int length = sizeof channel / sizeof *channel;
-    int sleepTime = (length / s->velocity)*1e6;
+    int sleepTime = (int)( (length / s->velocity)*1e6 );
     for (i = length - 1; i >= 0; i--)
     {   
 
