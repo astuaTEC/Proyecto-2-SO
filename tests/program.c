@@ -25,20 +25,29 @@ typedef struct
     int direction; // 0 izquierda - 1 derecha
 } ship ;
 
+////////////// ROUTINES ////////////////
 
 void *routine(void* data);
 void moverHaciaIzquierda(ship *s);
 void moverHaciaDerecha(ship *s);
+void createShips(char *path);
+void initConfig(char *path);
 
-int channel[5] = {0, 0, 0, 0, 0}; //canal
+/////////// VARIABLES //////////////////
+
+int *channel; //canal
 
 sem_t sem, sem_lado;
+
+int channelSize = 5, readyShipSize = 2, semTime, W;
 
 int shipCount, defaultVel = 5;
 
 int contIzq = 0, contDer = 0;
 
-pthread_t th_der[2], th_izq[2];
+pthread_t *th_der, *th_izq;
+
+/////////////////////////////////////
 
 void printArray(int *channel, int length){
     int loop;
@@ -48,16 +57,21 @@ void printArray(int *channel, int length){
    printf("\n");
 }
 
-void createShips(char *path);
-
 int main(int argc, char *argv[]){
 
     shipCount = 0;
+    initConfig("program.conf");
     if ( sem_init(&sem, 0, 1) != 0 || sem_init(&sem_lado, 0, 2) != 0)
     {
         // Error: initialization failed
         perror("Error: initialization failed");
     }
+
+    th_der = (pthread_t *) malloc(readyShipSize * sizeof(pthread_t));
+    th_izq = (pthread_t *) malloc(readyShipSize * sizeof(pthread_t));
+
+    channel = (int *) malloc(channelSize * sizeof(int));
+    memset(channel, 0, channelSize * sizeof(int) ); // valores en cero
 
     createShips("barcos.txt");
 
@@ -81,6 +95,46 @@ void *routine(void *data){
         contDer++;
         moverHaciaIzquierda(s);
     }
+}
+
+void initConfig(char *path){
+    FILE *fp = fopen(path, "r");
+
+    if (fp == NULL)
+    {
+        printf("Error: could not open file %s", path);
+    }
+
+    // reading line by line, max 48 bytes
+    const unsigned MAX_LENGTH = 48;
+    char buffer[MAX_LENGTH];
+    char delim[] = "=";
+    int contIzq = 0, contDer = 0;
+
+    char *ptr;
+    ship *s;
+    while (fgets(buffer, MAX_LENGTH, fp)){
+        ptr = strtok(buffer, delim);
+
+        if( strcmp(ptr, "ControlFlujo") == 0){
+            
+        } else if(strcmp(ptr, "LargoCanal") == 0){
+            ptr = strtok(NULL, delim);
+            channelSize = atoi(ptr);
+        } else if(strcmp(ptr, "CantidadBarcosColaListos") == 0){
+            ptr = strtok(NULL, delim);
+            readyShipSize = atoi(ptr);
+        } else if(strcmp(ptr, "TiempoLetrero") == 0){
+            ptr = strtok(NULL, delim);
+            semTime = atoi(ptr);
+        } else if(strcmp(ptr, "W") == 0){
+            ptr = strtok(NULL, delim);
+            W = atoi(ptr);
+        } 
+    }
+
+    // close the file
+    fclose(fp);
 }
 
 void createShips(char *path){
@@ -162,9 +216,8 @@ void moverHaciaDerecha(ship *s){
     sem_wait(&sem_lado);
     contIzq--;
     int i;
-    int length = sizeof channel / sizeof *channel;
-    int sleepTime = (int)( (length / s->velocity)*1e6 );
-    for (i = 0; i < length; i++)
+    int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
+    for (i = 0; i < channelSize; i++)
     {   
 
         sem_wait(&sem);
@@ -175,7 +228,7 @@ void moverHaciaDerecha(ship *s){
                 channel[s->pos - 1] = 0;
             
             printf("---------------\n");
-            printArray(channel, length);
+            printArray(channel, channelSize);
             printf(KBLU "My id is %d\n" RESET, s->id);
             printf("---------------\n");
             
@@ -189,7 +242,7 @@ void moverHaciaDerecha(ship *s){
         }
         
     }
-    channel[length - 1] = 0;
+    channel[channelSize - 1] = 0;
     sem_post(&sem_lado);
     printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 }
@@ -204,9 +257,8 @@ void moverHaciaIzquierda(ship *s){
     sem_wait(&sem_lado);
     contDer--;
     int i;
-    int length = sizeof channel / sizeof *channel;
-    int sleepTime = (int)( (length / s->velocity)*1e6 );
-    for (i = length - 1; i >= 0; i--)
+    int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
+    for (i = channelSize - 1; i >= 0; i--)
     {   
 
         sem_wait(&sem);
@@ -217,7 +269,7 @@ void moverHaciaIzquierda(ship *s){
             channel[s->pos + 1] = 0;
             
             printf("---------------\n");
-            printArray(channel, length);
+            printArray(channel, channelSize);
             printf(KBLU "My id is %d\n" RESET, s->id);
             printf("---------------\n");
             
