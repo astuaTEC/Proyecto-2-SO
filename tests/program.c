@@ -6,7 +6,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-#define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
 #define KYEL  "\x1B[33m"
@@ -32,6 +31,7 @@ void moverHaciaIzquierda(ship *s);
 void moverHaciaDerecha(ship *s);
 void createShips(char *path);
 void initConfig(char *path);
+void changeElement(int element, int *array, int length);
 
 /////////// VARIABLES //////////////////
 
@@ -47,6 +47,14 @@ int contIzq = 0, contDer = 0, flagDir = 0;
 
 pthread_t *th_der, *th_izq;
 
+pthread_attr_t attr;
+
+typedef struct {
+    int *izqArray, *derArray;
+} queueInfo;
+
+queueInfo * info;
+
 /////////////////////////////////////
 
 void printArray(int *channel, int length){
@@ -60,6 +68,8 @@ void printArray(int *channel, int length){
 int main(int argc, char *argv[]){
 
     shipCount = 0;
+    pthread_attr_init(&attr);
+    pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
     initConfig("program.conf");
 
     if ( sem_init(&sem, 0, 1) != 0 || sem_init(&sem_lado, 0, readyShipSize) != 0)
@@ -68,6 +78,15 @@ int main(int argc, char *argv[]){
         perror("Error: initialization failed");
     }
 
+    info = (queueInfo *) malloc(sizeof(queueInfo));
+    info->derArray = (int *) malloc(readyShipSize * sizeof(int));
+    info->izqArray = (int *) malloc(readyShipSize * sizeof(int));
+    for (int i = 0; i < readyShipSize; i++)
+    {
+        info->derArray[i] = 0 ;
+        info->izqArray[i] = 0 ;
+    }
+    
     th_der = (pthread_t *) malloc(readyShipSize * sizeof(pthread_t));
     th_izq = (pthread_t *) malloc(readyShipSize * sizeof(pthread_t));
 
@@ -91,10 +110,20 @@ void *routine(void *data){
     printf("ID... %d, Type: %s, Vel: %d, Dir: %d\n", s->id, s->type, s->velocity, s->direction);
 
     if(s->direction == 0){
+        info->izqArray[contIzq] = s->id;
         contIzq++;
+        printf(KMAG "COLA IZQUIERDA...\n" RESET);
+        printArray(info->izqArray, readyShipSize);
+        printf(KMAG ".................\n" RESET);
+        sleep(1);
         moverHaciaDerecha(s);
     } else{
+        info->derArray[contDer] = s->id;
         contDer++;
+        printf(KYEL "COLA DERECHA...\n" RESET);
+        printArray(info->derArray, readyShipSize);
+        printf(KYEL ".................\n" RESET);
+        sleep(1);
         moverHaciaIzquierda(s);
     }
 }
@@ -176,7 +205,7 @@ void createShips(char *path){
         if(strcmp(ptr, "izq\n") == 0){
             s->pos = -1;
             s->direction = 0;
-            if(pthread_create(&th_izq[contIzq], NULL, routine, &s[0]) != 0){
+            if(pthread_create(&th_izq[contIzq], &attr, routine, &s[0]) != 0){
                 perror("Error creating the threads");
             };
             contIzq++;
@@ -184,7 +213,7 @@ void createShips(char *path){
         else {
             s->pos = 5; // lenght
             s->direction = 1;
-            if(pthread_create(&th_der[contDer], NULL, routine, &s[0]) != 0){
+            if(pthread_create(&th_der[contDer], &attr, routine, &s[0]) != 0){
                 perror("Error creating the threads");
             };
             contDer++;
@@ -211,13 +240,17 @@ void moverHaciaDerecha(ship *s){
     sem_wait(&sem_lado);
     if(flagDir == 0 || flagDir == 1){
         flagDir = 1;
-        printf("FLAG en hacia Der %d\n", flagDir);
+        
         int i;
         int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
         for (i = 0; i < channelSize; i++)
         {   
             sem_wait(&sem);
             if(channel[s->pos+1] == 0){ // esta disponible
+                changeElement(s->id, info->izqArray, readyShipSize);
+                printf(KMAG "COLA IZQUIERDA...\n" RESET);
+                printArray(info->izqArray, readyShipSize);
+                printf(KMAG ".................\n" RESET);
                 channel[s->pos+1] = s->id;
                 s->pos++;
                 if(s->pos >= 1)
@@ -257,13 +290,17 @@ void moverHaciaIzquierda(ship *s){
     sem_wait(&sem_lado);
     if (flagDir == 0 || flagDir == 2){
         flagDir = 2;
-        printf("FLAG en hacia Izq %d\n", flagDir);
+        
         int i;
         int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
         for (i = channelSize - 1; i >= 0; i--)
         {   
             sem_wait(&sem);
             if(channel[s->pos-1] == 0){ // esta disponible
+                changeElement(s->id, info->derArray, readyShipSize);
+                printf(KYEL "COLA DERECHA...\n" RESET);
+                printArray(info->derArray, readyShipSize);
+                printf(KYEL ".................\n" RESET);
                 channel[s->pos-1] = s->id;
                 s->pos--;
 
@@ -297,4 +334,19 @@ void moverHaciaIzquierda(ship *s){
         sem_post(&sem_lado);
         moverHaciaIzquierda(s);
     }
+}
+
+void changeElement(int element, int *array, int length){
+    for (int i = 0; i < length; i++)
+    {
+        if(array[i] == element){
+            array[i] = 0;
+        }
+        if( i > 0 && array[i] != 0&& array[i-1] == 0){
+            array[i-1] = array[i];
+            array[i] = 0;
+            continue; 
+        }
+    }
+    
 }
