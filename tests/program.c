@@ -39,7 +39,7 @@ int *channel; //canal
 
 sem_t sem, sem_lado;
 
-int channelSize = 1, readyShipSize = 2, semTime, W;
+int channelSize = 0, readyShipSize = 0, semTime, W;
 
 int shipCount, defaultVel = 5;
 
@@ -94,6 +94,18 @@ int main(int argc, char *argv[]){
     memset(channel, 0, channelSize * sizeof(int) ); // valores en cero
 
     createShips("barcos.txt");
+
+
+    for (int i = 0; i < readyShipSize; i++)
+    {   
+        if(pthread_join(th_izq[i], NULL) != 0){
+            perror("Error joining the threads");
+        };
+
+        if(pthread_join(th_der[i], NULL) != 0){
+            perror("Error joining the threads");
+        };
+    }
 
     sem_close(&sem);
     sem_close(&sem_lado);
@@ -211,7 +223,7 @@ void createShips(char *path){
             contIzq++;
         }
         else {
-            s->pos = 5; // lenght
+            s->pos = channelSize; // lenght
             s->direction = 1;
             if(pthread_create(&th_der[contDer], &attr, routine, &s[0]) != 0){
                 perror("Error creating the threads");
@@ -219,17 +231,6 @@ void createShips(char *path){
             contDer++;
         }
         //printf(KCYN "Ship side %s\n" RESET, ptr);
-    }
-
-    for (int i = 0; i < 2; i++)
-    {   
-        if(pthread_join(th_izq[i], NULL) != 0){
-            perror("Error joining the threads");
-        };
-
-        if(pthread_join(th_der[i], NULL) != 0){
-            perror("Error joining the threads");
-        };
     }
     
     // close the file
@@ -246,11 +247,15 @@ void moverHaciaDerecha(ship *s){
         for (i = 0; i < channelSize; i++)
         {   
             sem_wait(&sem);
+            if(s->pos == channelSize - 1) break;
             if(channel[s->pos+1] == 0){ // esta disponible
-                changeElement(s->id, info->izqArray, readyShipSize);
-                printf(KMAG "COLA IZQUIERDA...\n" RESET);
-                printArray(info->izqArray, readyShipSize);
-                printf(KMAG ".................\n" RESET);
+                if(s->pos+1 == 0){
+                    changeElement(s->id, info->izqArray, readyShipSize);
+                    printf(KMAG "COLA IZQUIERDA...\n" RESET);
+                    printArray(info->izqArray, readyShipSize);
+                    printf(KMAG ".................\n" RESET);
+                }
+              
                 channel[s->pos+1] = s->id;
                 s->pos++;
                 if(s->pos >= 1)
@@ -275,11 +280,17 @@ void moverHaciaDerecha(ship *s){
         contIzq--;
         channel[channelSize - 1] = 0;
         printf("ContIzq %d\n", contIzq);
-        if(contIzq == 0) flagDir = 0;
+        if(contIzq == 0){
+            flagDir = 0;
+            for (int i = 0; i < readyShipSize; i++)
+            {
+                sem_post(&sem_lado);
+            }
+        }
         
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
-        sem_post(&sem_lado);
         free(s);
+        return;
     } else {
         sem_post(&sem_lado);
         moverHaciaDerecha(s);
@@ -296,11 +307,15 @@ void moverHaciaIzquierda(ship *s){
         for (i = channelSize - 1; i >= 0; i--)
         {   
             sem_wait(&sem);
+            if(s->pos == 0) break;
             if(channel[s->pos-1] == 0){ // esta disponible
-                changeElement(s->id, info->derArray, readyShipSize);
-                printf(KYEL "COLA DERECHA...\n" RESET);
-                printArray(info->derArray, readyShipSize);
-                printf(KYEL ".................\n" RESET);
+                if(s->pos - 1 == channelSize - 1){
+                    changeElement(s->id, info->derArray, readyShipSize);
+                    printf(KYEL "COLA DERECHA...\n" RESET);
+                    printArray(info->derArray, readyShipSize);
+                    printf(KYEL ".................\n" RESET);
+                }
+                
                 channel[s->pos-1] = s->id;
                 s->pos--;
 
@@ -325,11 +340,15 @@ void moverHaciaIzquierda(ship *s){
         contDer--;
         channel[0] = 0;
         printf("ContDer %d\n", contDer);
-        if(contDer == 0) flagDir = 0;
-        
-        printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
-        sem_post(&sem_lado);
+        if(contDer == 0){
+            flagDir = 0;
+            for (int i = 0; i < readyShipSize; i++)
+            {
+                sem_post(&sem_lado);
+            }
+        }
         free(s);
+        return;
     } else {
         sem_post(&sem_lado);
         moverHaciaIzquierda(s);
