@@ -302,7 +302,7 @@ void moverHaciaDerecha(ship *s){
         channel[channelSize - 1] = 0;
         printf("ContIzq %d\n", contIzq);
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
-        if(contIzq == 0 || contIzq == readyShipSize - W /*|| contIzq == 1*/){
+        if(contIzq == 0 || contIzq == readyShipSize - W || (contIzq == 1 & W != 0)){
             flagDir = 2;
             printf("KKKKKKKK\n");
             int maxCount;
@@ -364,7 +364,7 @@ void moverHaciaIzquierda(ship *s){
         channel[0] = 0;
         printf("ContDer %d\n", contDer);
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
-        if(contDer == 0 || contDer == readyShipSize - W /*|| contDer == 1*/){
+        if(contDer == 0 || contDer == readyShipSize - W || (contDer == 1 & W != 0)){
             flagDir = 1;
             printf("OOOOOOOOOOO\n");
             int maxCount;
