@@ -15,6 +15,8 @@
 #define KWHT  "\x1B[37m"
 #define RESET "\x1B[0m"
 
+/////////////// STRUCTS ////////////////////
+
 typedef struct
 {
     char type[20];
@@ -23,6 +25,10 @@ typedef struct
     int id;
     int direction; // 0 izquierda - 1 derecha
 } ship ;
+
+typedef struct {
+    int *izqArray, *derArray;
+} queueInfo;
 
 ////////////// ROUTINES ////////////////
 
@@ -49,13 +55,11 @@ pthread_t *th_der, *th_izq;
 
 pthread_attr_t attr;
 
-typedef struct {
-    int *izqArray, *derArray;
-} queueInfo;
-
 queueInfo * info;
 
-/////////////////////////////////////
+char controlFlujo[20];
+
+///////////////////////////////////////////
 
 void printArray(int *channel, int length){
     int loop;
@@ -69,13 +73,27 @@ int main(int argc, char *argv[]){
 
     shipCount = 0;
     pthread_attr_init(&attr);
-    pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+    pthread_attr_setschedpolicy(&attr, SCHED_RR); //ROUND ROBIN
     initConfig("program.conf");
 
-    if ( sem_init(&sem, 0, 1) != 0 || sem_init(&sem_lado, 0, readyShipSize) != 0)
+    if ( sem_init(&sem, 0, 1) != 0)
     {
         // Error: initialization failed
         perror("Error: initialization failed");
+    }
+
+    if (strcmp(controlFlujo, "Equidad") == 0){
+        if (sem_init(&sem_lado, 0, W) != 0){
+            // Error: initialization failed
+            perror("Error: initialization failed");
+        }
+       
+    } else if(strcmp(controlFlujo, "Tico") == 0){
+        W = 0;
+        if (sem_init(&sem_lado, 0, readyShipSize) != 0){
+            // Error: initialization failed
+            perror("Error: initialization failed");
+        }
     }
 
     info = (queueInfo *) malloc(sizeof(queueInfo));
@@ -95,7 +113,7 @@ int main(int argc, char *argv[]){
 
     createShips("barcos.txt");
 
-
+    // join the threads
     for (int i = 0; i < readyShipSize; i++)
     {   
         if(pthread_join(th_izq[i], NULL) != 0){
@@ -112,6 +130,7 @@ int main(int argc, char *argv[]){
     free(channel);
     free(th_der);
     free(th_izq);
+    free(info);
 
     return 0;
 }
@@ -159,13 +178,17 @@ void initConfig(char *path){
         ptr = strtok(buffer, delim);
 
         if( strcmp(ptr, "ControlFlujo") == 0){
-            
+            ptr = strtok(NULL, delim);
+            strncpy(controlFlujo, ptr, strlen(ptr) - 1); // quitar el salto de linea
         } else if(strcmp(ptr, "LargoCanal") == 0){
             ptr = strtok(NULL, delim);
             channelSize = atoi(ptr);
         } else if(strcmp(ptr, "CantidadBarcosColaListos") == 0){
             ptr = strtok(NULL, delim);
             readyShipSize = atoi(ptr);
+        } else if(strcmp(ptr, "VelocidadBarco") == 0){
+            ptr = strtok(NULL, delim);
+            defaultVel = atoi(ptr);
         } else if(strcmp(ptr, "TiempoLetrero") == 0){
             ptr = strtok(NULL, delim);
             semTime = atoi(ptr);
@@ -211,7 +234,6 @@ void createShips(char *path){
             s->velocity = defaultVel + 2; // Patrulla
 
         /*******************************/
-        //printf(KMAG "Ship type %s\n" RESET, ptr);
 
         ptr = strtok(NULL, delim);
         if(strcmp(ptr, "izq\n") == 0){
@@ -223,14 +245,13 @@ void createShips(char *path){
             contIzq++;
         }
         else {
-            s->pos = channelSize; // lenght
+            s->pos = channelSize; // length
             s->direction = 1;
             if(pthread_create(&th_der[contDer], &attr, routine, &s[0]) != 0){
                 perror("Error creating the threads");
             };
             contDer++;
         }
-        //printf(KCYN "Ship side %s\n" RESET, ptr);
     }
     
     // close the file
@@ -239,7 +260,7 @@ void createShips(char *path){
 
 void moverHaciaDerecha(ship *s){
     sem_wait(&sem_lado);
-    if(flagDir == 0 || flagDir == 1){
+    if(flagDir == 0 || flagDir == 1){ //verificar para que no hayan colisiones
         flagDir = 1;
         
         int i;
@@ -247,8 +268,8 @@ void moverHaciaDerecha(ship *s){
         for (i = 0; i < channelSize; i++)
         {   
             sem_wait(&sem);
-            if(s->pos == channelSize - 1) break;
             if(channel[s->pos+1] == 0){ // esta disponible
+
                 if(s->pos+1 == 0){
                     changeElement(s->id, info->izqArray, readyShipSize);
                     printf(KMAG "COLA IZQUIERDA...\n" RESET);
@@ -280,17 +301,19 @@ void moverHaciaDerecha(ship *s){
         contIzq--;
         channel[channelSize - 1] = 0;
         printf("ContIzq %d\n", contIzq);
-        if(contIzq == 0){
-            flagDir = 0;
-            for (int i = 0; i < readyShipSize; i++)
+        printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
+        if(contIzq == 0 || contIzq == readyShipSize - W /*|| contIzq == 1*/){
+            flagDir = 2;
+            printf("KKKKKKKK\n");
+            int maxCount;
+            if(strcmp(controlFlujo, "Equidad") == 0) maxCount = W;
+            else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
+            for (int i = 0; i < maxCount; i++)
             {
                 sem_post(&sem_lado);
             }
         }
-        
-        printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
         free(s);
-        return;
     } else {
         sem_post(&sem_lado);
         moverHaciaDerecha(s);
@@ -299,7 +322,7 @@ void moverHaciaDerecha(ship *s){
 
 void moverHaciaIzquierda(ship *s){
     sem_wait(&sem_lado);
-    if (flagDir == 0 || flagDir == 2){
+    if (flagDir == 0 || flagDir == 2){ //verificar para que no hayan colisiones
         flagDir = 2;
         
         int i;
@@ -307,8 +330,8 @@ void moverHaciaIzquierda(ship *s){
         for (i = channelSize - 1; i >= 0; i--)
         {   
             sem_wait(&sem);
-            if(s->pos == 0) break;
             if(channel[s->pos-1] == 0){ // esta disponible
+
                 if(s->pos - 1 == channelSize - 1){
                     changeElement(s->id, info->derArray, readyShipSize);
                     printf(KYEL "COLA DERECHA...\n" RESET);
@@ -340,15 +363,19 @@ void moverHaciaIzquierda(ship *s){
         contDer--;
         channel[0] = 0;
         printf("ContDer %d\n", contDer);
-        if(contDer == 0){
-            flagDir = 0;
-            for (int i = 0; i < readyShipSize; i++)
+        printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
+        if(contDer == 0 || contDer == readyShipSize - W /*|| contDer == 1*/){
+            flagDir = 1;
+            printf("OOOOOOOOOOO\n");
+            int maxCount;
+            if(strcmp(controlFlujo, "Equidad") == 0) maxCount = W;
+            else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
+            for (int i = 0; i < maxCount; i++)
             {
                 sem_post(&sem_lado);
             }
         }
         free(s);
-        return;
     } else {
         sem_post(&sem_lado);
         moverHaciaIzquierda(s);
