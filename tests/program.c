@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "time.h" // Linux
+#include <time.h>
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -38,6 +38,7 @@ void moverHaciaDerecha(ship *s);
 void createShips(char *path);
 void initConfig(char *path);
 void changeElement(int element, int *array, int length);
+int64_t millis();
 
 /////////// VARIABLES //////////////////
 
@@ -58,6 +59,8 @@ pthread_attr_t attr;
 queueInfo * info;
 
 char controlFlujo[20];
+
+ time_t startTime, endTime;
 
 ///////////////////////////////////////////
 
@@ -88,7 +91,7 @@ int main(int argc, char *argv[]){
             perror("Error: initialization failed");
         }
        
-    } else if(strcmp(controlFlujo, "Tico") == 0){
+    } else if(strcmp(controlFlujo, "Tico") == 0 || strcmp(controlFlujo, "Letrero") == 0){
         W = 0;
         if (sem_init(&sem_lado, 0, readyShipSize) != 0){
             // Error: initialization failed
@@ -262,7 +265,9 @@ void moverHaciaDerecha(ship *s){
     sem_wait(&sem_lado);
     if(flagDir == 0 || flagDir == 1){ //verificar para que no hayan colisiones
         flagDir = 1;
-        
+
+        if(strcmp(controlFlujo, "Letrero") == 0) startTime = millis();
+
         int i;
         int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
         for (i = 0; i < channelSize; i++)
@@ -300,14 +305,26 @@ void moverHaciaDerecha(ship *s){
         }
         contIzq--;
         channel[channelSize - 1] = 0;
+
+        int flagLetrero = 0;
+        if(strcmp(controlFlujo, "Letrero") == 0) {
+            endTime = millis();
+            int totalTime = (int) (endTime - startTime);
+            if(totalTime >= semTime){
+                printf(KGRN "TIEMPO...\n" RESET);
+                flagLetrero = 2;
+                startTime = millis();
+            }
+        }
+       
         printf("ContIzq %d\n", contIzq);
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
-        if(contIzq == 0 || contIzq == readyShipSize - W || (contIzq == 1 & W != 0)){
+        if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq == 1 & W != 0) || flagLetrero == 1){
             flagDir = 2;
             printf("KKKKKKKK\n");
             int maxCount;
             if(strcmp(controlFlujo, "Equidad") == 0) maxCount = W;
-            else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
+            else if (strcmp(controlFlujo, "Tico") == 0 || strcmp(controlFlujo, "Letrero") == 0) maxCount = readyShipSize;
             for (int i = 0; i < maxCount; i++)
             {
                 sem_post(&sem_lado);
@@ -324,7 +341,8 @@ void moverHaciaIzquierda(ship *s){
     sem_wait(&sem_lado);
     if (flagDir == 0 || flagDir == 2){ //verificar para que no hayan colisiones
         flagDir = 2;
-        
+        if(strcmp(controlFlujo, "Letrero") == 0) startTime = millis();
+
         int i;
         int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
         for (i = channelSize - 1; i >= 0; i--)
@@ -362,14 +380,26 @@ void moverHaciaIzquierda(ship *s){
         }
         contDer--;
         channel[0] = 0;
+
+        int flagLetrero = 0;
+        if(strcmp(controlFlujo, "Letrero") == 0) {
+            endTime = millis();
+            int totalTime = (int) (endTime - startTime);
+            if(totalTime >= semTime){
+                printf(KYEL "TIEMPO...\n" RESET);
+                flagLetrero = 1;
+                startTime = millis();
+            }
+        }
+
         printf("ContDer %d\n", contDer);
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
-        if(contDer == 0 || contDer == readyShipSize - W || (contDer == 1 & W != 0)){
+        if(contDer == 0 || contDer == (readyShipSize - W) || (contDer == 1 & W != 0) || flagLetrero == 1){
             flagDir = 1;
             printf("OOOOOOOOOOO\n");
             int maxCount;
             if(strcmp(controlFlujo, "Equidad") == 0) maxCount = W;
-            else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
+            else if (strcmp(controlFlujo, "Tico") == 0 || strcmp(controlFlujo, "Letrero") == 0) maxCount = readyShipSize;
             for (int i = 0; i < maxCount; i++)
             {
                 sem_post(&sem_lado);
@@ -395,4 +425,11 @@ void changeElement(int element, int *array, int length){
         }
     }
     
+}
+
+int64_t millis()
+{
+    struct timespec now;
+    timespec_get(&now, TIME_UTC);
+    return ((int64_t) now.tv_sec) * 1000 + ((int64_t) now.tv_nsec) / 1000000;
 }
