@@ -40,6 +40,7 @@ void initConfig(char *path);
 void changeElement(int element, int *array, int length);
 int64_t millis();
 void controlLetrero();
+void prepareArduinoList();
 
 /////////// VARIABLES //////////////////
 
@@ -61,7 +62,9 @@ queueInfo * info;
 
 char controlFlujo[20];
 
- time_t startTime, endTime;
+time_t startTime, endTime;
+
+int *arduinoArray;
 
 ///////////////////////////////////////////
 
@@ -78,6 +81,7 @@ int main(int argc, char *argv[]){
     shipCount = 0;
     pthread_attr_init(&attr);
     pthread_attr_setschedpolicy(&attr, SCHED_RR); //ROUND ROBIN
+
     initConfig("program.conf");
 
     if ( sem_init(&sem, 0, 1) != 0)
@@ -115,6 +119,9 @@ int main(int argc, char *argv[]){
     channel = (int *) malloc(channelSize * sizeof(int));
     memset(channel, 0, channelSize * sizeof(int) ); // valores en cero
 
+    arduinoArray = (int *) malloc((2*readyShipSize + channelSize) * sizeof(int));
+    memset(arduinoArray, 0, (2*readyShipSize + channelSize) * sizeof(int)); // valores en cero
+
     createShips("barcos.txt");
 
     if(strcmp(controlFlujo, "Letrero") == 0) {
@@ -151,17 +158,13 @@ void *routine(void *data){
     if(s->direction == 0){
         info->izqArray[contIzq] = s->id;
         contIzq++;
-        printf(KMAG "COLA IZQUIERDA...\n" RESET);
-        printArray(info->izqArray, readyShipSize);
-        printf(KMAG ".................\n" RESET);
+        prepareArduinoList();
         sleep(1);
         moverHaciaDerecha(s);
     } else{
         info->derArray[contDer] = s->id;
         contDer++;
-        printf(KYEL "COLA DERECHA...\n" RESET);
-        printArray(info->derArray, readyShipSize);
-        printf(KYEL ".................\n" RESET);
+        prepareArduinoList();
         sleep(1);
         moverHaciaIzquierda(s);
     }
@@ -272,7 +275,7 @@ void moverHaciaDerecha(ship *s){
         flagDir = 1;
 
         int i;
-        int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
+        int sleepTime = (int)( (channelSize / s->velocity)*3e6 );
         for (i = 0; i < channelSize; i++)
         {   
             sem_wait(&sem);
@@ -280,9 +283,6 @@ void moverHaciaDerecha(ship *s){
 
                 if(s->pos+1 == 0){
                     changeElement(s->id, info->izqArray, readyShipSize);
-                    printf(KMAG "COLA IZQUIERDA...\n" RESET);
-                    printArray(info->izqArray, readyShipSize);
-                    printf(KMAG ".................\n" RESET);
                 }
               
                 channel[s->pos+1] = s->id;
@@ -291,9 +291,10 @@ void moverHaciaDerecha(ship *s){
                     channel[s->pos - 1] = 0;
                 
                 printf("---------------\n");
-                printf("My pos %d\n", s->pos);
+                printf(KMAG "My pos %d\n", s->pos);
                 printArray(channel, channelSize);
-                printf(KBLU "My id is %d\n" RESET, s->id);
+                prepareArduinoList();
+                printf("My id is %d\n" RESET, s->id);
                 printf("---------------\n");
                 
                 sem_post(&sem); // el post se debe hacer antes de los prints
@@ -308,9 +309,11 @@ void moverHaciaDerecha(ship *s){
         }
         contIzq--;
         channel[channelSize - 1] = 0;
-       
-        printf("ContIzq %d\n", contIzq);
+        prepareArduinoList();
+        //printf("ContIzq %d\n", contIzq);
+
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
+
         if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq == 1 && W == 1)){
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 2;
             printf("KKKKKKKK\n");
@@ -335,7 +338,7 @@ void moverHaciaIzquierda(ship *s){
         flagDir = 2;
 
         int i;
-        int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
+        int sleepTime = (int)( (channelSize / s->velocity)*3e6 );
         for (i = channelSize - 1; i >= 0; i--)
         {   
             sem_wait(&sem);
@@ -343,9 +346,9 @@ void moverHaciaIzquierda(ship *s){
 
                 if(s->pos - 1 == channelSize - 1){
                     changeElement(s->id, info->derArray, readyShipSize);
-                    printf(KYEL "COLA DERECHA...\n" RESET);
+                    /*printf(KYEL "COLA DERECHA...\n" RESET);
                     printArray(info->derArray, readyShipSize);
-                    printf(KYEL ".................\n" RESET);
+                    printf(KYEL ".................\n" RESET);*/
                 }
                 
                 channel[s->pos-1] = s->id;
@@ -354,9 +357,10 @@ void moverHaciaIzquierda(ship *s){
                 channel[s->pos + 1] = 0;
                 
                 printf("---------------\n");
-                printf("My pos %d\n", s->pos);
+                printf(KBLU "My pos %d\n", s->pos);
                 printArray(channel, channelSize);
-                printf(KBLU "My id is %d\n" RESET, s->id);
+                prepareArduinoList();
+                printf("My id is %d\n" RESET, s->id);
                 printf("---------------\n");
                 
                 sem_post(&sem); // el post se debe hacer antes de los prints
@@ -372,8 +376,11 @@ void moverHaciaIzquierda(ship *s){
         contDer--;
         channel[0] = 0;
 
-        printf("ContDer %d\n", contDer);
+        prepareArduinoList();
+        //printf("ContDer %d\n", contDer);
+
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
+
         if(contDer == 0 || contDer == (readyShipSize - W) || (contDer == 1 && W == 1)){
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 1;
             printf("OOOOOOOOOOO\n");
@@ -434,4 +441,38 @@ void controlLetrero(){
     }
 
     return controlLetrero();
+}
+
+void prepareArduinoList(){;
+    FILE *fileArduino;
+
+    fileArduino = fopen("arduinoFile.txt", "w");
+
+    char buffer[512];
+    bzero(buffer, 512); //clear the buffer
+
+    int i;
+    for (i = 0; i < readyShipSize; i++)
+    {
+        arduinoArray[i] = info->izqArray[i];
+        arduinoArray[i + readyShipSize + channelSize] = info->derArray[i];
+    }
+
+    for (i = 0; i < channelSize; i++)
+    {
+        arduinoArray[i + readyShipSize] = channel[i];
+    }
+
+    /*int index = 0;
+    for (i = 0; i < 2*readyShipSize + channelSize; i++)
+    {
+        index += snprintf(&buffer[index], 128-index, "%d", arduinoArray[i]);
+    }
+    
+    fprintf(fileArduino, "%s", buffer);*/
+    fclose(fileArduino);
+
+    /*printf("///////////////\n");
+    printArray(arduinoArray, 2*readyShipSize + channelSize);
+    printf("///////////////\n ");*/
 }
