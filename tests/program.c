@@ -39,6 +39,7 @@ void createShips(char *path);
 void initConfig(char *path);
 void changeElement(int element, int *array, int length);
 int64_t millis();
+void controlLetrero();
 
 /////////// VARIABLES //////////////////
 
@@ -115,6 +116,10 @@ int main(int argc, char *argv[]){
     memset(channel, 0, channelSize * sizeof(int) ); // valores en cero
 
     createShips("barcos.txt");
+
+    if(strcmp(controlFlujo, "Letrero") == 0) {
+        controlLetrero();
+    }
 
     // join the threads
     for (int i = 0; i < readyShipSize; i++)
@@ -266,8 +271,6 @@ void moverHaciaDerecha(ship *s){
     if(flagDir == 0 || flagDir == 1){ //verificar para que no hayan colisiones
         flagDir = 1;
 
-        if(strcmp(controlFlujo, "Letrero") == 0) startTime = millis();
-
         int i;
         int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
         for (i = 0; i < channelSize; i++)
@@ -305,26 +308,15 @@ void moverHaciaDerecha(ship *s){
         }
         contIzq--;
         channel[channelSize - 1] = 0;
-
-        int flagLetrero = 0;
-        if(strcmp(controlFlujo, "Letrero") == 0) {
-            endTime = millis();
-            int totalTime = (int) (endTime - startTime);
-            if(totalTime >= semTime){
-                printf(KGRN "TIEMPO...\n" RESET);
-                flagLetrero = 2;
-                startTime = millis();
-            }
-        }
        
         printf("ContIzq %d\n", contIzq);
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
-        if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq == 1 & W != 0) || flagLetrero == 1){
-            flagDir = 2;
+        if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq == 1 && W == 1)){
+            if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 2;
             printf("KKKKKKKK\n");
-            int maxCount;
+            int maxCount = 0;
             if(strcmp(controlFlujo, "Equidad") == 0) maxCount = W;
-            else if (strcmp(controlFlujo, "Tico") == 0 || strcmp(controlFlujo, "Letrero") == 0) maxCount = readyShipSize;
+            else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
             for (int i = 0; i < maxCount; i++)
             {
                 sem_post(&sem_lado);
@@ -341,7 +333,6 @@ void moverHaciaIzquierda(ship *s){
     sem_wait(&sem_lado);
     if (flagDir == 0 || flagDir == 2){ //verificar para que no hayan colisiones
         flagDir = 2;
-        if(strcmp(controlFlujo, "Letrero") == 0) startTime = millis();
 
         int i;
         int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
@@ -381,25 +372,14 @@ void moverHaciaIzquierda(ship *s){
         contDer--;
         channel[0] = 0;
 
-        int flagLetrero = 0;
-        if(strcmp(controlFlujo, "Letrero") == 0) {
-            endTime = millis();
-            int totalTime = (int) (endTime - startTime);
-            if(totalTime >= semTime){
-                printf(KYEL "TIEMPO...\n" RESET);
-                flagLetrero = 1;
-                startTime = millis();
-            }
-        }
-
         printf("ContDer %d\n", contDer);
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
-        if(contDer == 0 || contDer == (readyShipSize - W) || (contDer == 1 & W != 0) || flagLetrero == 1){
-            flagDir = 1;
+        if(contDer == 0 || contDer == (readyShipSize - W) || (contDer == 1 && W == 1)){
+            if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 1;
             printf("OOOOOOOOOOO\n");
-            int maxCount;
+            int maxCount = 0;
             if(strcmp(controlFlujo, "Equidad") == 0) maxCount = W;
-            else if (strcmp(controlFlujo, "Tico") == 0 || strcmp(controlFlujo, "Letrero") == 0) maxCount = readyShipSize;
+            else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
             for (int i = 0; i < maxCount; i++)
             {
                 sem_post(&sem_lado);
@@ -432,4 +412,26 @@ int64_t millis()
     struct timespec now;
     timespec_get(&now, TIME_UTC);
     return ((int64_t) now.tv_sec) * 1000 + ((int64_t) now.tv_nsec) / 1000000;
+}
+
+void controlLetrero(){
+    usleep(semTime*1000);
+    printf("BRRRRRRR\n");
+    if(flagDir == 1 && contIzq == 0){
+        flagDir = 2;
+        for (int i = 0; i < readyShipSize; i++){
+            sem_post(&sem_lado);
+        }
+    } else if(flagDir == 2 && contDer == 0) {
+        flagDir = 1;
+        for (int i = 0; i < readyShipSize; i++){
+            sem_post(&sem_lado);
+        }
+    } 
+    if(contDer == 0 && contIzq == 0){
+        printf("YAAAAAAAAA\n");
+        return;
+    }
+
+    return controlLetrero();
 }
