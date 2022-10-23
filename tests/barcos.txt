@@ -4,3 +4,5 @@ Pesquera izq
 Pesquera der
 Patrulla der
 Patrulla izq
+Normal izq
+Normal der

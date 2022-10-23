@@ -278,7 +278,7 @@ void moverHaciaDerecha(ship *s){
         flagDir = 1;
 
         int i;
-        int sleepTime = (int)( (channelSize / s->velocity)*3e6 );
+        int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
         for (i = 0; i < channelSize; i++)
         {   
             sem_wait(&sem);
@@ -296,9 +296,13 @@ void moverHaciaDerecha(ship *s){
                 printf("---------------\n");
                 printf(KMAG "My pos %d\n", s->pos);
                 printArray(channel, channelSize);
-                prepareArduinoList();
+                //prepareArduinoList();
                 printf("My id is %d\n" RESET, s->id);
                 printf("---------------\n");
+
+                int val;
+                sem_getvalue(&sem, &val);
+                printf("Val %d\n", val);
                 
                 sem_post(&sem); // el post se debe hacer antes de los prints
                                 // pero por cuestiones de desarrollo, se necesita
@@ -313,15 +317,18 @@ void moverHaciaDerecha(ship *s){
         contIzq--;
         channel[channelSize - 1] = 0;
         prepareArduinoList();
-        //printf("ContIzq %d\n", contIzq);
+        printf("ContIzq %d\n", contIzq);
 
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 
-        if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq == 1 && W == 1)){
+        if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq <= (readyShipSize - W)&& W == 1)){
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 2;
             printf("KKKKKKKK\n");
             int maxCount = 0;
-            if(strcmp(controlFlujo, "Equidad") == 0) maxCount = W;
+            if(strcmp(controlFlujo, "Equidad") == 0) {
+                if(contDer == 1) maxCount = 1;
+                else maxCount = W;
+            }
             else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
             for (int i = 0; i < maxCount; i++)
             {
@@ -341,7 +348,7 @@ void moverHaciaIzquierda(ship *s){
         flagDir = 2;
 
         int i;
-        int sleepTime = (int)( (channelSize / s->velocity)*3e6 );
+        int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
         for (i = channelSize - 1; i >= 0; i--)
         {   
             sem_wait(&sem);
@@ -362,9 +369,13 @@ void moverHaciaIzquierda(ship *s){
                 printf("---------------\n");
                 printf(KBLU "My pos %d\n", s->pos);
                 printArray(channel, channelSize);
-                prepareArduinoList();
+                //prepareArduinoList();
                 printf("My id is %d\n" RESET, s->id);
                 printf("---------------\n");
+
+                int val;
+                sem_getvalue(&sem, &val);
+                printf("Val %d\n", val);
                 
                 sem_post(&sem); // el post se debe hacer antes de los prints
                                 // pero por cuestiones de desarrollo, se necesita
@@ -380,15 +391,18 @@ void moverHaciaIzquierda(ship *s){
         channel[0] = 0;
 
         prepareArduinoList();
-        //printf("ContDer %d\n", contDer);
+        printf("ContDer %d\n", contDer);
 
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 
-        if(contDer == 0 || contDer == (readyShipSize - W) || (contDer == 1 && W == 1)){
+        if(contDer == 0 || contDer == (readyShipSize - W) || (contDer <= (readyShipSize - W) && W == 1)){
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 1;
             printf("OOOOOOOOOOO\n");
             int maxCount = 0;
-            if(strcmp(controlFlujo, "Equidad") == 0) maxCount = W;
+            if(strcmp(controlFlujo, "Equidad") == 0) {
+                if(contIzq == 1) maxCount = 1;
+                else maxCount = W;
+            }
             else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
             for (int i = 0; i < maxCount; i++)
             {
