@@ -41,6 +41,7 @@ void changeElement(int element, int *array, int length);
 int64_t millis();
 void controlLetrero();
 void prepareArduinoList();
+void keyManager();
 
 /////////// VARIABLES //////////////////
 
@@ -139,6 +140,8 @@ int main(int argc, char *argv[]){
             perror("Error joining the threads");
         };
     }
+
+    //keyManager();
 
     sem_close(&sem);
     sem_close(&sem_lado);
@@ -475,4 +478,41 @@ void prepareArduinoList(){;
     /*printf("///////////////\n");
     printArray(arduinoArray, 2*readyShipSize + channelSize);
     printf("///////////////\n ");*/
+}
+
+void keyManager(){
+    char *ch;
+    printf("Presione una tecla: ");
+    scanf("%c", ch);
+    if(strcmp(ch, "w") == 0){
+        if(contIzq < readyShipSize){
+            ship *s = (ship*) malloc(sizeof(ship));
+            s->velocity = defaultVel;
+            strcpy(s->type, "Normal");
+            
+            s->pos = -1;
+            s->direction = 0;
+            if(pthread_create(&th_izq[contIzq], &attr, routine, &s[0]) != 0){
+                perror("Error creating the threads");
+            };
+
+            if(pthread_join(th_izq[contIzq], NULL) != 0){
+            perror("Error joining the threads");
+            };
+        }
+
+    } else if (strcmp(ch, "s") == 0){
+
+    } else if (strcmp(ch, "x") == 0){
+        
+    } else if(strcmp(ch, "e") == 0){
+
+    } else if (strcmp(ch, "d") == 0){
+
+    } else if (strcmp(ch, "c")){
+
+    } else if (strcmp(ch, "q")){
+        return;
+    }
+    return keyManager();
 }
