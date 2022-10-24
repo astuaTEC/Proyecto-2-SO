@@ -120,8 +120,8 @@ int main(int argc, char *argv[]){
     channel = (int *) malloc(channelSize * sizeof(int));
     memset(channel, 0, channelSize * sizeof(int) ); // valores en cero
 
-    arduinoArray = (int *) malloc((2*readyShipSize + channelSize) * sizeof(int));
-    memset(arduinoArray, 0, (2*readyShipSize + channelSize) * sizeof(int)); // valores en cero
+    arduinoArray = (int *) malloc((2*readyShipSize + channelSize+ 1) * sizeof(int));
+    memset(arduinoArray, 0, (2*readyShipSize + channelSize + 1) * sizeof(int)); // valores en cero
 
     createShips("barcos.txt");
 
@@ -293,16 +293,12 @@ void moverHaciaDerecha(ship *s){
                 if(s->pos >= 1)
                     channel[s->pos - 1] = 0;
                 
-                printf("---------------\n");
+                /*printf("---------------\n");
                 printf(KMAG "My pos %d\n", s->pos);
-                printArray(channel, channelSize);
-                //prepareArduinoList();
-                printf("My id is %d\n" RESET, s->id);
-                printf("---------------\n");
-
-                int val;
-                sem_getvalue(&sem, &val);
-                printf("Val %d\n", val);
+                printArray(channel, channelSize);*/
+                prepareArduinoList();
+                /*printf("My id is %d\n" RESET, s->id);
+                printf("---------------\n");*/
                 
                 sem_post(&sem); // el post se debe hacer antes de los prints
                                 // pero por cuestiones de desarrollo, se necesita
@@ -366,16 +362,12 @@ void moverHaciaIzquierda(ship *s){
 
                 channel[s->pos + 1] = 0;
                 
-                printf("---------------\n");
+                /*printf("---------------\n");
                 printf(KBLU "My pos %d\n", s->pos);
-                printArray(channel, channelSize);
-                //prepareArduinoList();
-                printf("My id is %d\n" RESET, s->id);
-                printf("---------------\n");
-
-                int val;
-                sem_getvalue(&sem, &val);
-                printf("Val %d\n", val);
+                printArray(channel, channelSize);*/
+                prepareArduinoList();
+                /*printf("My id is %d\n" RESET, s->id);
+                printf("---------------\n");*/
                 
                 sem_post(&sem); // el post se debe hacer antes de los prints
                                 // pero por cuestiones de desarrollo, se necesita
@@ -480,13 +472,14 @@ void prepareArduinoList(){;
         arduinoArray[i + readyShipSize] = channel[i];
     }
 
-    /*int index = 0;
-    for (i = 0; i < 2*readyShipSize + channelSize; i++)
+    arduinoArray[2*readyShipSize + channelSize] = flagDir;
+    int index = 0;
+    for (i = 0; i < (2*readyShipSize + channelSize + 1); i++)
     {
         index += snprintf(&buffer[index], 128-index, "%d", arduinoArray[i]);
     }
     
-    fprintf(fileArduino, "%s", buffer);*/
+    fprintf(fileArduino, "%s", buffer);
     fclose(fileArduino);
 
     /*printf("///////////////\n");
