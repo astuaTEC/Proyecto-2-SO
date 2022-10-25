@@ -67,6 +67,8 @@ time_t startTime, endTime;
 
 int *arduinoArray;
 
+int rAux = 0;
+
 ///////////////////////////////////////////
 
 void printArray(int *channel, int length){
@@ -97,9 +99,19 @@ int main(int argc, char *argv[]){
             perror("Error: initialization failed");
         }
        
-    } else if(strcmp(controlFlujo, "Tico") == 0 || strcmp(controlFlujo, "Letrero") == 0){
+    } else if(strcmp(controlFlujo, "Letrero") == 0){
         W = 0;
         if (sem_init(&sem_lado, 0, readyShipSize) != 0){
+            // Error: initialization failed
+            perror("Error: initialization failed");
+        }
+    } else if(strcmp(controlFlujo, "Tico") == 0){
+        W = 0;
+        srand(time(NULL));
+        int r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
+        rAux = r;
+        printf("RRR %d \n", r);
+        if (sem_init(&sem_lado, 0, r) != 0){
             // Error: initialization failed
             perror("Error: initialization failed");
         }
@@ -278,7 +290,7 @@ void moverHaciaDerecha(ship *s){
         flagDir = 1;
 
         int i;
-        int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
+        int sleepTime = (int)( (channelSize / s->velocity)*2e6 );
         for (i = 0; i < channelSize; i++)
         {   
             sem_wait(&sem);
@@ -312,12 +324,16 @@ void moverHaciaDerecha(ship *s){
         }
         contIzq--;
         channel[channelSize - 1] = 0;
+
+        if (strcmp(controlFlujo, "Tico") == 0) rAux--;
+
         prepareArduinoList();
         printf("ContIzq %d\n", contIzq);
 
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 
-        if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq <= (readyShipSize - W)&& W == 1)){
+        if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq <= (readyShipSize - W)&& W == 1)
+         || (strcmp(controlFlujo, "Tico") == 0 && rAux == 0) ){
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 2;
             printf("KKKKKKKK\n");
             int maxCount = 0;
@@ -325,7 +341,16 @@ void moverHaciaDerecha(ship *s){
                 if(contDer == 1) maxCount = 1;
                 else maxCount = W;
             }
-            else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
+            else if (strcmp(controlFlujo, "Tico") == 0){
+                srand(time(NULL));
+                int r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
+                while(r > contDer && contDer != 0){
+                    r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
+                }
+                printf("RRR %d \n", r);
+                rAux = r;
+                maxCount = r;
+            }
             for (int i = 0; i < maxCount; i++)
             {
                 sem_post(&sem_lado);
@@ -344,7 +369,7 @@ void moverHaciaIzquierda(ship *s){
         flagDir = 2;
 
         int i;
-        int sleepTime = (int)( (channelSize / s->velocity)*1e6 );
+        int sleepTime = (int)( (channelSize / s->velocity)*2e6 );
         for (i = channelSize - 1; i >= 0; i--)
         {   
             sem_wait(&sem);
@@ -382,12 +407,15 @@ void moverHaciaIzquierda(ship *s){
         contDer--;
         channel[0] = 0;
 
+        if (strcmp(controlFlujo, "Tico") == 0) rAux--;
+
         prepareArduinoList();
         printf("ContDer %d\n", contDer);
 
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 
-        if(contDer == 0 || contDer == (readyShipSize - W) || (contDer <= (readyShipSize - W) && W == 1)){
+        if(contDer == 0 || contDer == (readyShipSize - W) || (contDer <= (readyShipSize - W) && W == 1) 
+        || (strcmp(controlFlujo, "Tico") == 0 && rAux == 0) ){
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 1;
             printf("OOOOOOOOOOO\n");
             int maxCount = 0;
@@ -395,7 +423,16 @@ void moverHaciaIzquierda(ship *s){
                 if(contIzq == 1) maxCount = 1;
                 else maxCount = W;
             }
-            else if (strcmp(controlFlujo, "Tico") == 0) maxCount = readyShipSize;
+            else if (strcmp(controlFlujo, "Tico") == 0){
+                srand(time(NULL));
+                int r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
+                while(r > contIzq && contIzq != 0){
+                    r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
+                }
+                printf("RRR %d \n", r);
+                rAux = r;
+                maxCount = r;
+            }
             for (int i = 0; i < maxCount; i++)
             {
                 sem_post(&sem_lado);
@@ -414,7 +451,7 @@ void changeElement(int element, int *array, int length){
         if(array[i] == element){
             array[i] = 0;
         }
-        if( i > 0 && array[i] != 0&& array[i-1] == 0){
+        if( i > 0 && array[i] != 0 && array[i-1] == 0){
             array[i-1] = array[i];
             array[i] = 0;
             continue; 
