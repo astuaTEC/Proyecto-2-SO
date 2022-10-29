@@ -174,7 +174,7 @@ int main(int argc, char *argv[]){
     }
 
     //keyManager();
-
+    serialport_close(fd);
     sem_close(&sem);
     sem_close(&sem_lado);
     free(channel);
