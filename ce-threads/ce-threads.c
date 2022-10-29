@@ -19,6 +19,7 @@ static cethread cethreadList[MAX_THREADS];
 static ucontext_t mainContext;
 
 static int currentCEthread = -1;
+static int inCEthread = 0;
 static int numCEthreads = 0;
 
 void init_threads()
@@ -32,28 +33,54 @@ void init_threads()
 
 void CEthread_yield()
 {
-    if (numCEthreads == 0)
+    if (inCEthread)
     {
-        return;
+        printf("============> WARNING: cethread %d en proceso de yield ", currentCEthread);
+        swapcontext(&cethreadList[numCEthreads].context, &mainContext); /* Swap to main context using swapcontext */
     }
-    currentCEthread = (currentCEthread + 1) % numCEthreads; /* Change context to next thread */
-    if (cethreadList[currentCEthread].pause != 0)
+    else
     {
-        clock_t end;
-        double now = 0;
-        end = clock();
-        now = (double)(end) / (double)(CLOCKS_PER_SEC);
-
-        double previous = (double)(cethreadList[currentCEthread].time) / (double)(CLOCKS_PER_SEC);
-        while (now - previous < cethreadList[currentCEthread].pause)
+        if (numCEthreads == 0)
         {
+            return;
+        }
+        currentCEthread = (currentCEthread + 1) % numCEthreads; /* Change context to next thread */
+        if (cethreadList[currentCEthread].pause != 0)
+        {
+            clock_t end;
+            double now = 0;
             end = clock();
             now = (double)(end) / (double)(CLOCKS_PER_SEC);
-            currentCEthread = (currentCEthread + 1) % numCEthreads;
-            previous = (double)(cethreadList[currentCEthread].time) / (double)(CLOCKS_PER_SEC);
+
+            double previous = (double)(cethreadList[currentCEthread].time) / (double)(CLOCKS_PER_SEC);
+            while (now - previous < cethreadList[currentCEthread].pause)
+            {
+                end = clock();
+                now = (double)(end) / (double)(CLOCKS_PER_SEC);
+                currentCEthread = (currentCEthread + 1) % numCEthreads;
+                previous = (double)(cethreadList[currentCEthread].time) / (double)(CLOCKS_PER_SEC);
+            }
+
+            usleep(2000000);
         }
 
-        usleep(2000000);
+        printf("============> WARNING: Cambiando al thread %d ", currentCEthread);
+        inCEthread = 1;
+        swapcontext(&mainContext, &cethreadList[currentCEthread].context); /* CHange to next context */
+        inCEthread = 0;
+        printf("============> WARNING: cethread %d, se cambió al thread principal ", currentCEthread);
+
+        if (cethreadList[currentCEthread].active == 0)
+        {
+            printf("============> WARNING: cethread %d ha terminado ", currentCEthread);
+            free(cethreadList[currentCEthread].context.uc_stack.ss_sp);
+            --numCEthreads;
+            if (currentCEthread != numCEthreads)
+            {
+                cethreadList[currentCEthread] = cethreadList[numCEthreads];
+            }
+            cethreadList[numCEthreads].active = 0;
+        }
     }
 }
 
@@ -96,6 +123,7 @@ int CEthread_create(void (*func)(void), int argc, int arg1, int arg2)
     if (cethreadList[numCEthreads].context.uc_stack.ss_sp == 0)
     {
         // CE_DEBUG_OUT("============> ERROR: NO se pudo inicializar un stack nuevo.", 0);
+        printf("============> ERROR: No se pudo inicializar un stack nuevo");
         return MALLOCERROR;
     }
 
@@ -128,7 +156,35 @@ int CEthread_join(int id)
     return NOERROR;
 }
 
-int CEthread_end(){
+int CEthread_end()
+{
     cethreadList[currentCEthread].active = 0;
     return NOERROR;
+}
+
+int CEthread_wait()
+{
+    int threadsRemaining = 0;
+
+    if (inCEthread)
+        threadsRemaining = 1; /* Wait until all threads ends */
+
+    printf("============> WARNING: Esperando a que %d threads terminen", threadsRemaining);
+    while (numCEthreads < threadsRemaining)
+    {
+        CEthread_yield();
+    }
+    return NOERROR;
+}
+
+void CEthread_pause(double pause)
+{
+    clock_t start, end;
+    start = clock();
+    cethreadList[currentCEthread].time = start;
+    cethreadList[currentCEthread].pause = pause;
+
+    CEthread_yield();
+    printf("============%d=======\n", cethreadList[currentCEthread].id);
+    cethreadList[currentCEthread].pause = 0;
 }

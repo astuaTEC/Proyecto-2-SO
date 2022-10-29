@@ -36,4 +36,11 @@ int CEthread_join(int id);
 /* Terminate a thread */
 int CEthread_end();
 
+/* Wait for thread termination */
+int CEthread_wait();
+
+/* Pause single thread */
+void CEthread_pause(double pause);
+
+
 #endif
