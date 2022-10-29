@@ -5,7 +5,6 @@
 #include <time.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include "../arduino-serial/arduino-serial-lib.h"
 
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
@@ -70,8 +69,6 @@ int *arduinoArray;
 
 int rAux = 0;
 
-int fd; // Arduino
-
 ///////////////////////////////////////////
 
 void printArray(int *channel, int length){
@@ -83,23 +80,6 @@ void printArray(int *channel, int length){
 }
 
 int main(int argc, char *argv[]){
-
-    ////////////// SERIAL ///////////////
-
-    char *serialport = "/dev/ttyACM0";
-    int baudrate = 9600;
-
-    fd = serialport_init(serialport, baudrate);
-
-    if (fd < 0){
-        printf(KRED "serial port initialization failed\n" RESET);
-        return fd;
-    }
-
-    printf("successfully opened serialport %s @ %d bps\n", serialport, baudrate);
-    serialport_flush(fd);
-
-    ////////////////////////////////////////
 
     shipCount = 0;
     pthread_attr_init(&attr);
@@ -174,7 +154,7 @@ int main(int argc, char *argv[]){
     }
 
     //keyManager();
-    serialport_close(fd);
+
     sem_close(&sem);
     sem_close(&sem_lado);
     free(channel);
@@ -193,18 +173,16 @@ void *routine(void *data){
     if(s->direction == 0){
         info->izqArray[contIzq] = s->id;
         contIzq++;
-        prepareArduinoList();
+        //prepareArduinoList();
         sleep(1);
         moverHaciaDerecha(s);
     } else{
         info->derArray[contDer] = s->id;
         contDer++;
-        prepareArduinoList();
+        //prepareArduinoList();
         sleep(1);
         moverHaciaIzquierda(s);
     }
-
-    return s;
 }
 
 void initConfig(char *path){
@@ -319,6 +297,9 @@ void moverHaciaDerecha(ship *s){
 
                 if(s->pos+1 == 0){
                     changeElement(s->id, info->izqArray, readyShipSize);
+                    printf(KCYN "COLA IZQUIERDA...\n" RESET);
+                    printArray(info->izqArray, readyShipSize);
+                    printf(KYEL ".................\n" RESET);
                 }
               
                 channel[s->pos+1] = s->id;
@@ -326,12 +307,12 @@ void moverHaciaDerecha(ship *s){
                 if(s->pos >= 1)
                     channel[s->pos - 1] = 0;
                 
-                /*printf("---------------\n");
+                printf("---------------\n");
                 printf(KMAG "My pos %d\n", s->pos);
-                printArray(channel, channelSize);*/
-                prepareArduinoList();
-                /*printf("My id is %d\n" RESET, s->id);
-                printf("---------------\n");*/
+                printArray(channel, channelSize);
+                //prepareArduinoList();
+                printf("My id is %d\n" RESET, s->id);
+                printf("---------------\n");
                 
                 sem_post(&sem); // el post se debe hacer antes de los prints
                                 // pero por cuestiones de desarrollo, se necesita
@@ -356,7 +337,6 @@ void moverHaciaDerecha(ship *s){
         if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq <= (readyShipSize - W)&& W == 1)
          || (strcmp(controlFlujo, "Tico") == 0 && rAux == 0) ){
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 2;
-            printf("KKKKKKKK\n");
             int maxCount = 0;
             if(strcmp(controlFlujo, "Equidad") == 0) {
                 if(contDer == 1) maxCount = 1;
@@ -368,7 +348,6 @@ void moverHaciaDerecha(ship *s){
                 while(r > contDer && contDer != 0){
                     r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
                 }
-                printf("RRR %d \n", r);
                 rAux = r;
                 maxCount = r;
             }
@@ -398,9 +377,9 @@ void moverHaciaIzquierda(ship *s){
 
                 if(s->pos - 1 == channelSize - 1){
                     changeElement(s->id, info->derArray, readyShipSize);
-                    /*printf(KYEL "COLA DERECHA...\n" RESET);
+                    printf(KYEL "COLA DERECHA...\n" RESET);
                     printArray(info->derArray, readyShipSize);
-                    printf(KYEL ".................\n" RESET);*/
+                    printf(KYEL ".................\n" RESET);
                 }
                 
                 channel[s->pos-1] = s->id;
@@ -408,12 +387,12 @@ void moverHaciaIzquierda(ship *s){
 
                 channel[s->pos + 1] = 0;
                 
-                /*printf("---------------\n");
+                printf("---------------\n");
                 printf(KBLU "My pos %d\n", s->pos);
-                printArray(channel, channelSize);*/
-                prepareArduinoList();
-                /*printf("My id is %d\n" RESET, s->id);
-                printf("---------------\n");*/
+                printArray(channel, channelSize);
+                //prepareArduinoList();
+                printf("My id is %d\n" RESET, s->id);
+                printf("---------------\n");
                 
                 sem_post(&sem); // el post se debe hacer antes de los prints
                                 // pero por cuestiones de desarrollo, se necesita
@@ -438,7 +417,6 @@ void moverHaciaIzquierda(ship *s){
         if(contDer == 0 || contDer == (readyShipSize - W) || (contDer <= (readyShipSize - W) && W == 1) 
         || (strcmp(controlFlujo, "Tico") == 0 && rAux == 0) ){
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 1;
-            printf("OOOOOOOOOOO\n");
             int maxCount = 0;
             if(strcmp(controlFlujo, "Equidad") == 0) {
                 if(contIzq == 1) maxCount = 1;
@@ -450,7 +428,6 @@ void moverHaciaIzquierda(ship *s){
                 while(r > contIzq && contIzq != 0){
                     r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
                 }
-                printf("RRR %d \n", r);
                 rAux = r;
                 maxCount = r;
             }
@@ -490,7 +467,6 @@ int64_t millis()
 
 void controlLetrero(){
     usleep(semTime*1000);
-    printf("BRRRRRRR\n");
     if(flagDir == 1 && contIzq == 0){
         flagDir = 2;
         for (int i = 0; i < readyShipSize; i++){
@@ -503,7 +479,6 @@ void controlLetrero(){
         }
     } 
     if(contDer == 0 && contIzq == 0){
-        printf("YAAAAAAAAA\n");
         return;
     }
 
@@ -511,7 +486,7 @@ void controlLetrero(){
 }
 
 void prepareArduinoList(){;
-    int rc;
+
     char buffer[512];
     bzero(buffer, 512); //clear the buffer
 
@@ -532,12 +507,6 @@ void prepareArduinoList(){;
     for (i = 0; i < (2*readyShipSize + channelSize + 1); i++)
     {
         index += snprintf(&buffer[index], 128-index, "%d", arduinoArray[i]);
-    }
-    
-    rc = serialport_write(fd, buffer); 
-
-    if(rc < 0){
-        printf( KRED "Writing to serial port failed rc: %d\n" RESET, rc);
     }
 
     /*printf("///////////////\n");

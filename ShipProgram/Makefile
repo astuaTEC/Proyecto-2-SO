@@ -4,8 +4,6 @@ CC = gcc
 # Opciones de compilacion
 CFLAGS = -Wall -I/usr/local/include
 
-# Opciones de compilacion
-CFLAGS2 = -L/usr/local/lib
 
 # Nombre del ejecutable
 TARGET = arduino
@@ -18,14 +16,14 @@ OBJS = $(SRCS:.c=.o)
 
 # Construir el ejecutable
 $(TARGET): link shipProgram
-		$(CC) $(CFLAGS2) arduino-serial-lib.o  program.o -o program.out
+		$(CC) arduino-serial-lib.o  program.o -o program.out
 
 # Dependencias
 link: $(SRCS)
 	$(CC) $(CFLAGS) -c $(SRCS)
 
 shipProgram: program.c
-	$(CC) -Wall -c program.c -lpthread
+	$(CC) -Wall -c program.c -lrt
 
 # Eliminar archivos generados
 limpiar:
