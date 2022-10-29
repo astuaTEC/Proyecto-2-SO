@@ -22,6 +22,8 @@ static int currentCEthread = -1;
 static int inCEthread = 0;
 static int numCEthreads = 0;
 
+static int mutex = 0;
+
 void init_threads()
 {
     for (int i = 0; i < MAX_THREADS; ++i)
@@ -187,4 +189,38 @@ void CEthread_pause(double pause)
     CEthread_yield();
     printf("============%d=======\n", cethreadList[currentCEthread].id);
     cethreadList[currentCEthread].pause = 0;
+}
+
+void CEmutex_init()
+{
+    mutex = 0;
+    return;
+}
+
+void CEmutex_destroy()
+{
+    return;
+}
+
+void CEmutex_unlock()
+{
+    mutex = 0;
+    return;
+}
+
+void CEmutex_lock()
+{
+    mutex = 0;
+    if (mutex == 0)
+    {
+        mutex = 1;
+    }
+    else
+    {
+        while (mutex == 1)
+        {
+            usleep(100);
+            CEmutex_trylock();
+        }
+    }
 }

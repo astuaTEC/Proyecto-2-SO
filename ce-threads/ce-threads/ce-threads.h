@@ -42,5 +42,16 @@ int CEthread_wait();
 /* Pause single thread */
 void CEthread_pause(double pause);
 
+/* Initial the mutex lock */
+void CEmutex_init();
+
+/* Destroy the mutex */
+void CEmutex_destroy();
+
+/* Aquire the mutex lock */
+void CEmutex_unlock();
+
+/* Release the mutex loco */
+void CEmutex_lock();
 
 #endif
