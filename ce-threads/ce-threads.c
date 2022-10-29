@@ -112,3 +112,23 @@ int CEthread_create(void (*func)(void), int argc, int arg1, int arg2)
 
     return NOERROR;
 }
+
+int CEthread_join(int id)
+{
+    for (int i = 0; i < numCEthreads; i++)
+    {
+        if (cethreadList[i].id = id)
+        {
+            while (cethreadList[i].active)
+            {
+                CEthread_yield();
+            }
+        }
+    }
+    return NOERROR;
+}
+
+int CEthread_end(){
+    cethreadList[currentCEthread].active = 0;
+    return NOERROR;
+}

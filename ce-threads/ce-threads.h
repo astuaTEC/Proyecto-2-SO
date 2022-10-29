@@ -18,7 +18,7 @@
 /* Initializes all threads white status inactive */
 void init_threads();
 
-/* Change from parent to child thread */
+/* Change from parent to child thread, give CPU pocession to othre user level threads voluntarily */
 void CEthread_yield();
 
 /* Verify status of cethread, free memory */
@@ -27,7 +27,13 @@ void CEthread_start(void (*func)(void));
 /* Verify status of cethread, free memory */
 void CEthread_start_A(void (*func)(int, int), int arg1, int arg2);
 
-/* create a new thread */
+/* Create a new thread */
 int CEthread_create(void (*func)(void), int argc, int arg1, int arg2);
+
+/* Wait for thread termination */
+int CEthread_join(int id);
+
+/* Terminate a thread */
+int CEthread_end();
 
 #endif
