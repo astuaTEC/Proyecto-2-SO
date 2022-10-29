@@ -5,6 +5,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include "../arduino-serial/arduino-serial-lib.h"
 
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
@@ -69,6 +70,8 @@ int *arduinoArray;
 
 int rAux = 0;
 
+int fd; // Arduino
+
 ///////////////////////////////////////////
 
 void printArray(int *channel, int length){
@@ -80,6 +83,23 @@ void printArray(int *channel, int length){
 }
 
 int main(int argc, char *argv[]){
+
+    ////////////// SERIAL ///////////////
+
+    char *serialport = "/dev/ttyACM0";
+    int baudrate = 9600;
+
+    fd = serialport_init(serialport, baudrate);
+
+    if (fd < 0){
+        printf(KRED "serial port initialization failed\n" RESET);
+        return fd;
+    }
+
+    printf("successfully opened serialport %s @ %d bps\n", serialport, baudrate);
+    serialport_flush(fd);
+
+    ////////////////////////////////////////
 
     shipCount = 0;
     pthread_attr_init(&attr);
@@ -490,10 +510,7 @@ void controlLetrero(){
 }
 
 void prepareArduinoList(){;
-    FILE *fileArduino;
-
-    fileArduino = fopen("arduinoFile.txt", "w");
-
+    int rc;
     char buffer[512];
     bzero(buffer, 512); //clear the buffer
 
@@ -516,14 +533,18 @@ void prepareArduinoList(){;
         index += snprintf(&buffer[index], 128-index, "%d", arduinoArray[i]);
     }
     
-    fprintf(fileArduino, "%s", buffer);
-    fclose(fileArduino);
+    rc = serialport_write(fd, buffer); 
+
+    if(rc < 0){
+        printf( KRED "Writing to serial port failed rc: %d\n" RESET, rc);
+    }
 
     /*printf("///////////////\n");
     printArray(arduinoArray, 2*readyShipSize + channelSize);
     printf("///////////////\n ");*/
 }
 
+/*
 void keyManager(){
     char *ch;
     printf("Presione una tecla: ");
@@ -559,4 +580,4 @@ void keyManager(){
         return;
     }
     return keyManager();
-}
+}*/
