@@ -16,7 +16,7 @@ OBJS = $(SRCS:.c=.o)
 
 # Construir el ejecutable
 $(TARGET): link shipProgram
-		$(CC) arduino-serial-lib.o  program.o -o program.out
+		$(CC) arduino-serial-lib.o  program.o -o program.out -lrt -lpthread -pthread
 
 # Dependencias
 link: $(SRCS)

@@ -79,11 +79,30 @@ void printArray(int *channel, int length){
    printf("\n");
 }
 
+void setScheduler(char *sch){
+    pthread_attr_init(&attr);
+    if(strcmp(sch, "RR") == 0){
+        printf("ROUND ROBIN\n");
+        pthread_attr_setschedpolicy(&attr, SCHED_RR); //ROUND ROBIN
+    } else if(strcmp(sch, "FCFS") == 0){
+        printf("FCFS\n");
+        pthread_attr_setschedpolicy(&attr, SCHED_FIFO); //FIFO
+    } else {
+        printf("OTHER\n");
+        pthread_attr_setschedpolicy(&attr, SCHED_OTHER); //OTHER
+    }
+}
+
 int main(int argc, char *argv[]){
 
+    if(argc < 2){
+        perror("Missing arguments");
+        return 1;
+    }
+
+    setScheduler(argv[1]);
+
     shipCount = 0;
-    pthread_attr_init(&attr);
-    pthread_attr_setschedpolicy(&attr, SCHED_RR); //ROUND ROBIN
 
     initConfig("program.conf");
 
