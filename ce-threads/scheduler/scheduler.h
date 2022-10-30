@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void schedpolicy(int schedulerType);
+/*  */
+typedef struct ship ship;
+
+/*  */
+void schedpolicy(int schedulerType. int d, int qt);
 
 #endif
