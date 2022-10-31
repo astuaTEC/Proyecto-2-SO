@@ -420,6 +420,7 @@ void moverHaciaDerecha(ship *s){
                 printf("Random %d \n", r);
                 rAux = r;
                 maxCount = r;
+                if(contIzq == 0) maxCount = contDer;
             }
             for (int i = 0; i < maxCount; i++)
             {
@@ -433,6 +434,11 @@ void moverHaciaDerecha(ship *s){
     }
 }
 
+/**
+ * @brief Función para mover un barco desde la derecha del canal hasta la izquierda
+ * 
+ * @param s el barco a mover
+ */
 void moverHaciaIzquierda(ship *s){
     sem_wait(&sem_lado);
     if (flagDir == 0 || flagDir == 2){ //verificar para que no hayan colisiones, 2 significa que va en la misma dirección
@@ -495,6 +501,7 @@ void moverHaciaIzquierda(ship *s){
                 printf("Random %d \n", r);
                 rAux = r;
                 maxCount = r;
+                if(contDer == 0) maxCount = contIzq;
             }
             for (int i = 0; i < maxCount; i++)
             {

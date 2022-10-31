@@ -369,6 +369,7 @@ void moverHaciaDerecha(ship *s){
                 }
                 rAux = r;
                 maxCount = r;
+                if(contIzq == 0) maxCount = contDer;
             }
             for (int i = 0; i < maxCount; i++)
             {
@@ -449,6 +450,7 @@ void moverHaciaIzquierda(ship *s){
                 }
                 rAux = r;
                 maxCount = r;
+                if(contDer == 0) maxCount = contIzq;
             }
             for (int i = 0; i < maxCount; i++)
             {
