@@ -9,7 +9,7 @@ void addThreadToTCB(tcb *item)
     threadControlList *temp = malloc(sizeof(threadControlList));
     temp->next = NULL;
     temp->thread = item;
-    // temp->thread->elapsedTpthread_time = item->elapsedTime;
+    temp->thread->elapsedTime = item->elapsedTime;
 
     if (allThreadControlBlocks == NULL)
     {
@@ -145,7 +145,7 @@ void setupAction()
 {
     struct sigaction action;
     memset(&action, 0, sizeof(struct sigaction));
-    action.sa_handler = &sched_stcf;
+    action.sa_handler = &sched_sjf;
     sigaction(SIGPROF, &action, NULL);
 }
 
@@ -170,6 +170,9 @@ void createMainThread()
 /* create a new thread */
 int cethread_create(cethread_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg)
 {
+    printf("\033[0;31m");
+    printf("===============> STATUS: cethread_create started\n");
+    printf("\033[0;m");
     if (threadIDs == 0)
         createMainThread();
     tcb *threadBlock = create_tcb(threadIDs++, true);
@@ -182,13 +185,20 @@ int cethread_create(cethread_t *thread, pthread_attr_t *attr, void *(*function)(
 /* give CPU possession to other user-level threads voluntarily */
 int cethread_yield()
 {
-    sched_stcf();
+    printf("\033[0;31m");
+    printf("===============> STATUS: cethread_yield started\n");
+    printf("\033[0;m");
+    sched_sjf();
     return 0;
 };
 
 /* terminate a thread */
 void cethread_exit(void *value_ptr)
 {
+    printf("\033[0;31m");
+    printf("===============> STATUS: cethread_exit started\n");
+    printf("\033[0;m");
+
     currentlyRunningThreadBlock->threadStatus = done;
     if (currentlyRunningThreadBlock->valuePtr != NULL)
     {
@@ -198,12 +208,16 @@ void cethread_exit(void *value_ptr)
     else
         currentlyRunningThreadBlock->returnVal = value_ptr;
     unblockThread(currentlyRunningThreadBlock->threadID);
-    sched_stcf();
+    sched_sjf();
 };
 
 /* Wait for thread termination */
 int cethread_join(cethread_t thread, void **value_ptr)
 {
+    printf("\033[0;31m");
+    printf("===============> STATUS: cethread_join started\n");
+    printf("\033[0;m");
+
     tcb *threadToJoin = getTCB(thread);
     if (threadToJoin == NULL)
         return 0;
@@ -222,7 +236,7 @@ int cethread_join(cethread_t thread, void **value_ptr)
         currentlyRunningThreadBlock->blockingThread = thread;
 
         threadToJoin->valuePtr = value_ptr;
-        sched_stcf();
+        sched_sjf();
     }
 
     return 0;
@@ -231,6 +245,10 @@ int cethread_join(cethread_t thread, void **value_ptr)
 /* initialize the mutex lock */
 int cemutex_init(cemutex_t *mutex, const pthread_mutexattr_t *mutexattr)
 {
+    printf("\033[0;31m");
+    printf("===============> STATUS: cemutex_init started\n");
+    printf("\033[0;m");
+
     // initialize data structures for this mutex
     if (threadIDs == 0)
         createMainThread();
@@ -242,6 +260,10 @@ int cemutex_init(cemutex_t *mutex, const pthread_mutexattr_t *mutexattr)
 /* aquire the mutex lock */
 int cemutex_lock(cemutex_t *mutex)
 {
+    printf("\033[0;31m");
+    printf("===============> STATUS: cemutex_lock started\n");
+    printf("\033[0;m");
+
     while (atomic_flag_test_and_set(&(mutex->lock)))
     {
         currentlyRunningThreadBlock->threadStatus = block;
@@ -249,7 +271,7 @@ int cemutex_lock(cemutex_t *mutex)
         temp->next = mutex->waitList;
         temp->thread = currentlyRunningThreadBlock;
         mutex->waitList = temp;
-        sched_stcf();
+        sched_sjf();
     }
     return 0;
 };
@@ -257,6 +279,10 @@ int cemutex_lock(cemutex_t *mutex)
 /* release the mutex lock */
 int cemutex_unlock(cemutex_t *mutex)
 {
+    printf("\033[0;31m");
+    printf("===============> STATUS: cemutex_unlock started\n");
+    printf("\033[0;m");
+
     threadControlList *cur = mutex->waitList;
     while (cur != NULL)
     {
@@ -275,12 +301,16 @@ int cemutex_unlock(cemutex_t *mutex)
 /* destroy the mutex */
 int cemutex_destroy(cemutex_t *mutex)
 {
+    printf("\033[0;31m");
+    printf("===============> STATUS: cemutex_destroy started\n");
+    printf("\033[0;m");
+
     cemutex_unlock(mutex);
     return 0;
 };
 
-/* Preemptive SJF (STCF) scheduling algorithm */
-static void sched_stcf()
+/* Preemptive SJF (sjf) scheduling algorithm */
+static void sched_sjf()
 {
     destroyAll();
     signal(SIGPROF, SIG_IGN);

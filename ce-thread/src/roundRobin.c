@@ -1,3 +1,5 @@
+/* Reference: https://www.edureka.co/blog/round-robin-scheduling-in-c/ */
+
 #include <stdio.h>
 
 int main()

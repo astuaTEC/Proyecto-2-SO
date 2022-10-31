@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
 #include "../cethread.h"
 
 // Let us create a global variable to change it in threads
@@ -27,12 +26,12 @@ void *myThreadFun(void *vargp)
 int main()
 {
     int i;
-    cethread_t tid;
+    pthread_t tid;
 
     // Let us create three threads
     for (i = 0; i < 3; i++)
-        cethread_create(&tid, NULL, myThreadFun, (void *)&tid);
+        pthread_create(&tid, NULL, myThreadFun, (void *)&tid);
 
-    cethread_exit(NULL);
+    pthread_exit(NULL);
     return 0;
 }

@@ -1,4 +1,10 @@
+/* References:
+    https://www.edureka.co/blog/first-come-first-serve-scheduling/#:~:text=First%20Come%20First%20Serve%20is,are%20requested%20by%20the%20processor.
+    https://www.geeksforgeeks.org/program-for-fcfs-cpu-scheduling-set-1/
+*/
+
 #include <stdio.h>
+
 int main()
 {
     int bt[20], p[20], wt[20], tat[20], i, j, n, total = 0, pos, temp;

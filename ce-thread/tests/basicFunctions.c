@@ -7,7 +7,7 @@
 void *myThreadFun(void *vargp)
 {
     sleep(1);
-    printf("Printing CETHREAD from cethread \n");
+    printf("Printing Astua Saymon, Guzmán Joshua, Ortiz Angelo \n");
     return NULL;
 }
 
@@ -17,6 +17,6 @@ int main()
     printf("Before thread\n");
     cethread_create(&thread_id, NULL, myThreadFun, NULL);
     cethread_join(thread_id, NULL);
-    printf("After Thread\n");
+    printf("After Thrad\n");
     exit(0);
 }
