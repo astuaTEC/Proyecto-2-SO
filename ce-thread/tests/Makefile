@@ -4,10 +4,10 @@ CFLAGS = -g -w -Wall -Werror -std=c99
 all:: basicFunctions multipleThreads creations mutex1
 
 basicFunctions:
-	$(CC) $(CFLAGS) -o basicFunctions basicFunctions.c -L../ -lcethread -lpthread
+	$(CC) $(CFLAGS) -o basicFunctions basicFunctions.c -L../ -lcethread 
 
 multipleThreads:
-	$(CC) $(CFLAGS) -o multipleThreads multipleThreads.c -L../ -lcethread -lpthread
+	$(CC) $(CFLAGS) -o multipleThreads multipleThreads.c -L../ -lcethread 
 
 creations:
 	$(CC) $(CFLAGS) -o creations creations.c -L../ -lcethread
