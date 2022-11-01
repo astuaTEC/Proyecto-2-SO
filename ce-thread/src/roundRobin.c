@@ -1,3 +1,5 @@
+/* Reference: https://www.edureka.co/blog/round-robin-scheduling-in-c/ */
+
 #include <stdio.h>
 
 int main()
@@ -42,7 +44,7 @@ int main()
         if (temp[i] == 0 && counter == 1)
         {
             x--;
-            printf("nProcess[%d]tt%dtt %dttt %d", i + 1, burst_time[i], total - arrival_time[i], total - arrival_time[i] - burst_time[i]);
+            printf("nProcess[%d]tt%dtt %dttt %d\n", i + 1, burst_time[i], total - arrival_time[i], total - arrival_time[i] - burst_time[i]);
             wait_time = wait_time + total - arrival_time[i] - burst_time[i];
             turnaround_time = turnaround_time + total - arrival_time[i];
             counter = 0;

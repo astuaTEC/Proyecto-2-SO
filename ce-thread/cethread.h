@@ -4,7 +4,7 @@
 #define _GNU_SOURCE
 
 /* To use Linux pthread Library in Benchmark, you have to comment the USE_MYTHREAD macro */
-#define USE_CETHREAD 1
+#define USE_MYTHREAD 1
 
 /* include lib header files that you need here: */
 #include <unistd.h>
@@ -63,7 +63,7 @@ tcb *getTCB(cethread_t tid);
 void freeNode(threadControlList *t);
 void destroyAll();
 void freeThreadQueue();
-static void sched_stcf();
+static void sched_sjf();
 tcb *create_tcb(cethread_t tid, bool createContext);
 void setupAction();
 void setupTimer();
@@ -72,7 +72,8 @@ void createMainThread();
 /* create a new thread */
 int cethread_create(cethread_t *thread, pthread_attr_t *attr, void *(*function)(void *), void *arg);
 
-/* give CPU pocession to other user level threads voluntarily */
+/* give CPU pocession to other user level #include <pthread.h>
+threads voluntarily */
 int cethread_yield();
 
 /* terminate a thread */
@@ -93,7 +94,8 @@ int cemutex_unlock(cemutex_t *mutex);
 /* destroy the mutex */
 int cemutex_destroy(cemutex_t *mutex);
 
-#ifdef USE_CETHREAD
+/*
+#ifdef USE_MYTHREAD
 #define pthread_t cethread_t
 #define pthread_mutex_t cemutex_t
 #define pthread_create cethread_create
@@ -103,6 +105,7 @@ int cemutex_destroy(cemutex_t *mutex);
 #define pthread_mutex_lock cemutex_lock
 #define pthread_mutex_unlock cemutex_unlock
 #define pthread_mutex_destroy cemutex_destroy
-#endif
+#endif*/
+
 
 #endif

@@ -1,4 +1,7 @@
+/* Reference: https://www.geeksforgeeks.org/program-for-shortest-job-first-or-sjf-cpu-scheduling-set-1-non-preemptive/ */
+
 #include <stdio.h>
+
 int main()
 {
     int bt[20], p[20], wt[20], tat[20], i, j, n, total = 0, pos, temp;
