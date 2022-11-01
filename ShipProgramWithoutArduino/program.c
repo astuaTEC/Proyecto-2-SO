@@ -5,7 +5,6 @@
 #include <time.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include "../arduino-serial/arduino-serial-lib.h"
 
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
@@ -39,8 +38,10 @@ void moverHaciaDerecha(ship *s);
 void createShips(char *path);
 void initConfig(char *path);
 void changeElement(int element, int *array, int length);
+int64_t millis();
 void controlLetrero();
 void prepareArduinoList();
+void keyManager();
 
 /////////// VARIABLES //////////////////
 
@@ -68,16 +69,8 @@ int *arduinoArray;
 
 int rAux = 0;
 
-int fd; // Arduino
-
 ///////////////////////////////////////////
 
-/**
- * @brief Método para imprimir un array
- * 
- * @param channel el array a imprimir
- * @param length el tamaño del array
- */
 void printArray(int *channel, int length){
     int loop;
     for(loop = 0; loop < length; loop++)
@@ -86,11 +79,6 @@ void printArray(int *channel, int length){
    printf("\n");
 }
 
-/**
- * @brief Asigna el calendarizador a unilizar
- * 
- * @param sch el acrónimo del calendarizador (RR, FCFS, SJF, RT)
- */
 void setScheduler(char *sch){
     pthread_attr_init(&attr);
     if(strcmp(sch, "RR") == 0){
@@ -114,29 +102,11 @@ int main(int argc, char *argv[]){
 
     setScheduler(argv[1]);
 
-    ////////////// SERIAL ///////////////
-
-    char *serialport = "/dev/ttyACM0";
-    int baudrate = 9600;
-
-    fd = serialport_init(serialport, baudrate);
-
-    if (fd < 0){
-        printf(KRED "serial port initialization failed\n" RESET);
-        return fd;
-    }
-
-    printf("successfully opened serialport %s @ %d bps\n", serialport, baudrate);
-    serialport_flush(fd);
-
-    ////////////////////////////////////////
-
     shipCount = 0;
 
-    initConfig("program.conf"); //se configuran las variables del programa
+    initConfig("program.conf");
 
-    // se inicializan los semáforos a utilizar
-    if (sem_init(&sem, 0, 1) != 0)
+    if ( sem_init(&sem, 0, 1) != 0)
     {
         // Error: initialization failed
         perror("Error: initialization failed");
@@ -144,28 +114,28 @@ int main(int argc, char *argv[]){
 
     if (strcmp(controlFlujo, "Equidad") == 0){
         if (sem_init(&sem_lado, 0, W) != 0){
+            // Error: initialization failed
             perror("Error: initialization failed");
         }
        
     } else if(strcmp(controlFlujo, "Letrero") == 0){
         W = 0;
         if (sem_init(&sem_lado, 0, readyShipSize) != 0){
+            // Error: initialization failed
             perror("Error: initialization failed");
         }
-
     } else if(strcmp(controlFlujo, "Tico") == 0){
         W = 0;
         srand(time(NULL));
         int r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
         rAux = r;
-        printf("Random %d \n", r);
+        printf("RRR %d \n", r);
         if (sem_init(&sem_lado, 0, r) != 0){
+            // Error: initialization failed
             perror("Error: initialization failed");
         }
     }
 
-    // se inicializa la estructura encargada
-    // de manejar cuáles barcos están en las colas de espera
     info = (queueInfo *) malloc(sizeof(queueInfo));
     info->derArray = (int *) malloc(readyShipSize * sizeof(int));
     info->izqArray = (int *) malloc(readyShipSize * sizeof(int));
@@ -175,22 +145,18 @@ int main(int argc, char *argv[]){
         info->izqArray[i] = 0 ;
     }
     
-    // se inicializan el array de hilos de la izquierda y derecha
     th_der = (pthread_t *) malloc(readyShipSize * sizeof(pthread_t));
     th_izq = (pthread_t *) malloc(readyShipSize * sizeof(pthread_t));
 
-    // se inicializa en canal
     channel = (int *) malloc(channelSize * sizeof(int));
     memset(channel, 0, channelSize * sizeof(int) ); // valores en cero
 
-    // se inicializa el array que contiene la información del estado
-    // del canal y de las colas de espera, para enviarlas al arduino 
     arduinoArray = (int *) malloc((2*readyShipSize + channelSize+ 1) * sizeof(int));
     memset(arduinoArray, 0, (2*readyShipSize + channelSize + 1) * sizeof(int)); // valores en cero
 
-    createShips("barcos.txt"); // se crean los barcos leyendo el archivo
+    createShips("barcos.txt");
 
-    if(strcmp(controlFlujo, "Letrero") == 0) { // si es modo letrero, se llama al controlador
+    if(strcmp(controlFlujo, "Letrero") == 0) {
         controlLetrero();
     }
 
@@ -206,7 +172,8 @@ int main(int argc, char *argv[]){
         };
     }
 
-    serialport_close(fd);
+    //keyManager();
+
     sem_close(&sem);
     sem_close(&sem_lado);
     free(channel);
@@ -217,40 +184,26 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-/**
- * @brief Método que cada hilo ejecuta y dependiendo de la dirección del barco
- *        se llama a mover el barco a la izquierda o derecha
- * 
- * @param data // el barco en cuestión
- * @return void* un puntero para poder invocar la función desde los hilos
- */
 void *routine(void *data){
     ship* s = (ship*) data;
 
     printf("ID... %d, Type: %s, Vel: %d, Dir: %d\n", s->id, s->type, s->velocity, s->direction);
 
-    if(s->direction == 0){ // es un barco de la izquierda
+    if(s->direction == 0){
         info->izqArray[contIzq] = s->id;
         contIzq++;
-        prepareArduinoList();
+        //prepareArduinoList();
         sleep(1);
         moverHaciaDerecha(s);
-    } else{ // es un barco de la derecha
+    } else{
         info->derArray[contDer] = s->id;
         contDer++;
-        prepareArduinoList();
+        //prepareArduinoList();
         sleep(1);
         moverHaciaIzquierda(s);
     }
-
-    return s;
 }
 
-/**
- * @brief Función para inicializar la configuración a utilizar dentro del programa
- * 
- * @param path la dirección del archivo a leer
- */
 void initConfig(char *path){
     FILE *fp = fopen(path, "r");
 
@@ -293,11 +246,6 @@ void initConfig(char *path){
     fclose(fp);
 }
 
-/**
- * @brief Create Barcos a partir de un archivo de texto
- * 
- * @param path la dirección del archivo de texto
- */
 void createShips(char *path){
     FILE *fp = fopen(path, "r");
 
@@ -341,7 +289,7 @@ void createShips(char *path){
             contIzq++;
         }
         else {
-            s->pos = channelSize; // length del canal
+            s->pos = channelSize; // length
             s->direction = 1;
             if(pthread_create(&th_der[contDer], &attr, routine, &s[0]) != 0){
                 perror("Error creating the threads");
@@ -354,25 +302,23 @@ void createShips(char *path){
     fclose(fp);
 }
 
-/**
- * @brief Función para mover un barco desde la izquierda del canal hasta la derecha
- * 
- * @param s el barco a mover
- */
 void moverHaciaDerecha(ship *s){
     sem_wait(&sem_lado);
-    if(flagDir == 0 || flagDir == 1){ //verificar para que no hayan colisiones, 1 significa que va en la misma dirección
+    if(flagDir == 0 || flagDir == 1){ //verificar para que no hayan colisiones
         flagDir = 1;
 
         int i;
-        int sleepTime = (int)( (channelSize / s->velocity)*2e6 ); //para emular la velocidad
+        int sleepTime = (int)( (channelSize / s->velocity)*2e6 );
         for (i = 0; i < channelSize; i++)
         {   
             sem_wait(&sem);
             if(channel[s->pos+1] == 0){ // esta disponible
 
                 if(s->pos+1 == 0){
-                    changeElement(s->id, info->izqArray, readyShipSize); //se actualiza la cola de espera
+                    changeElement(s->id, info->izqArray, readyShipSize);
+                    printf(KCYN "COLA IZQUIERDA...\n" RESET);
+                    printArray(info->izqArray, readyShipSize);
+                    printf(KYEL ".................\n" RESET);
                 }
               
                 channel[s->pos+1] = s->id;
@@ -380,10 +326,16 @@ void moverHaciaDerecha(ship *s){
                 if(s->pos >= 1)
                     channel[s->pos - 1] = 0;
                 
-                prepareArduinoList();
+                printf("---------------\n");
+                printf(KMAG "My pos %d\n", s->pos);
+                printArray(channel, channelSize);
+                //prepareArduinoList();
+                printf("My id is %d\n" RESET, s->id);
+                printf("---------------\n");
                 
-                sem_post(&sem); // el post de una posición del canal
-
+                sem_post(&sem); // el post se debe hacer antes de los prints
+                                // pero por cuestiones de desarrollo, se necesita
+                                // ahi mientras tanto, para poder ver el comportamiento
                 usleep(sleepTime);
             } else{
                 i--;
@@ -403,28 +355,25 @@ void moverHaciaDerecha(ship *s){
 
         if(contIzq == 0 || (contIzq == readyShipSize - W) || (contIzq <= (readyShipSize - W)&& W == 1)
          || (strcmp(controlFlujo, "Tico") == 0 && rAux == 0) ){
-
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 2;
-
             int maxCount = 0;
             if(strcmp(controlFlujo, "Equidad") == 0) {
                 if(contDer == 1) maxCount = 1;
                 else maxCount = W;
             }
             else if (strcmp(controlFlujo, "Tico") == 0){
-                srand(time(NULL)); // se limpia la semilla
+                srand(time(NULL));
                 int r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
                 while(r > contDer && contDer != 0){
                     r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
                 }
-                printf("Random %d \n", r);
                 rAux = r;
                 maxCount = r;
                 if(contIzq == 0) maxCount = contDer;
             }
             for (int i = 0; i < maxCount; i++)
             {
-                sem_post(&sem_lado); //se le hace post al semáforo de dirección
+                sem_post(&sem_lado);
             }
         }
         free(s);
@@ -434,25 +383,23 @@ void moverHaciaDerecha(ship *s){
     }
 }
 
-/**
- * @brief Función para mover un barco desde la derecha del canal hasta la izquierda
- * 
- * @param s el barco a mover
- */
 void moverHaciaIzquierda(ship *s){
     sem_wait(&sem_lado);
-    if (flagDir == 0 || flagDir == 2){ //verificar para que no hayan colisiones, 2 significa que va en la misma dirección
+    if (flagDir == 0 || flagDir == 2){ //verificar para que no hayan colisiones
         flagDir = 2;
 
         int i;
-        int sleepTime = (int)( (channelSize / s->velocity)*2e6 ); // para emular la velocidad
+        int sleepTime = (int)( (channelSize / s->velocity)*2e6 );
         for (i = channelSize - 1; i >= 0; i--)
         {   
             sem_wait(&sem);
             if(channel[s->pos-1] == 0){ // esta disponible
 
                 if(s->pos - 1 == channelSize - 1){
-                    changeElement(s->id, info->derArray, readyShipSize); // se actualiza la cola de espera
+                    changeElement(s->id, info->derArray, readyShipSize);
+                    printf(KYEL "COLA DERECHA...\n" RESET);
+                    printArray(info->derArray, readyShipSize);
+                    printf(KYEL ".................\n" RESET);
                 }
                 
                 channel[s->pos-1] = s->id;
@@ -460,10 +407,16 @@ void moverHaciaIzquierda(ship *s){
 
                 channel[s->pos + 1] = 0;
                 
-                prepareArduinoList();
+                printf("---------------\n");
+                printf(KBLU "My pos %d\n", s->pos);
+                printArray(channel, channelSize);
+                //prepareArduinoList();
+                printf("My id is %d\n" RESET, s->id);
+                printf("---------------\n");
                 
-                sem_post(&sem); // el post de una posición del canal
-
+                sem_post(&sem); // el post se debe hacer antes de los prints
+                                // pero por cuestiones de desarrollo, se necesita
+                                // ahi mientras tanto, para poder ver el comportamiento
                 usleep(sleepTime);
             } else{
                 i++;
@@ -477,28 +430,24 @@ void moverHaciaIzquierda(ship *s){
         if (strcmp(controlFlujo, "Tico") == 0) rAux--;
 
         prepareArduinoList();
-
         printf("ContDer %d\n", contDer);
 
         printf(KGRN "Ship id %d has finalized \n" RESET, s->id);
 
         if(contDer == 0 || contDer == (readyShipSize - W) || (contDer <= (readyShipSize - W) && W == 1) 
         || (strcmp(controlFlujo, "Tico") == 0 && rAux == 0) ){
-
             if( strcmp(controlFlujo, "Letrero") != 0) flagDir = 1;
-
             int maxCount = 0;
             if(strcmp(controlFlujo, "Equidad") == 0) {
                 if(contIzq == 1) maxCount = 1;
                 else maxCount = W;
             }
             else if (strcmp(controlFlujo, "Tico") == 0){
-                srand(time(NULL)); // se limpia la semilla
+                srand(time(NULL));
                 int r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
                 while(r > contIzq && contIzq != 0){
                     r = rand() % (readyShipSize) + 1; // entre 1 y readyShipSize
                 }
-                printf("Random %d \n", r);
                 rAux = r;
                 maxCount = r;
                 if(contDer == 0) maxCount = contIzq;
@@ -515,13 +464,6 @@ void moverHaciaIzquierda(ship *s){
     }
 }
 
-/**
- * @brief Metodo para cambiar un número dado dentro de una lista por un cero
- * 
- * @param element el elemento a cambiar
- * @param array el array en donde hay que cambiarlo
- * @param length el tamaño del array
- */
 void changeElement(int element, int *array, int length){
     for (int i = 0; i < length; i++)
     {
@@ -537,10 +479,13 @@ void changeElement(int element, int *array, int length){
     
 }
 
-/**
- * @brief 
- * 
- */
+int64_t millis()
+{
+    struct timespec now;
+    timespec_get(&now, TIME_UTC);
+    return ((int64_t) now.tv_sec) * 1000 + ((int64_t) now.tv_nsec) / 1000000;
+}
+
 void controlLetrero(){
     usleep(semTime*1000);
     if(flagDir == 1 && contIzq == 0){
@@ -555,44 +500,75 @@ void controlLetrero(){
         }
     } 
     if(contDer == 0 && contIzq == 0){
-        printf(KGRN "End...\n" RESET);
         return;
     }
 
     return controlLetrero();
 }
 
-/**
- * @brief Función para preparar el array que el arduino espera recibir
- * 
- */
 void prepareArduinoList(){;
-    int rc;
+
     char buffer[512];
     bzero(buffer, 512); //clear the buffer
 
     int i;
-    for (i = 0; i < readyShipSize; i++) // las colas de espera de ambos lados
+    for (i = 0; i < readyShipSize; i++)
     {
         arduinoArray[i] = info->izqArray[i];
         arduinoArray[i + readyShipSize + channelSize] = info->derArray[i];
     }
 
-    for (i = 0; i < channelSize; i++) // el estado del canal
+    for (i = 0; i < channelSize; i++)
     {
         arduinoArray[i + readyShipSize] = channel[i];
     }
 
-    arduinoArray[2*readyShipSize + channelSize] = flagDir; // la bandera de dirección
+    arduinoArray[2*readyShipSize + channelSize] = flagDir;
     int index = 0;
-    for (i = 0; i < (2*readyShipSize + channelSize + 1); i++) // se pasa a un string
+    for (i = 0; i < (2*readyShipSize + channelSize + 1); i++)
     {
         index += snprintf(&buffer[index], 128-index, "%d", arduinoArray[i]);
     }
-    
-    rc = serialport_write(fd, buffer); // se le envía al arduino
 
-    if(rc < 0){
-        printf( KRED "Writing to serial port failed rc: %d\n" RESET, rc);
-    }
+    /*printf("///////////////\n");
+    printArray(arduinoArray, 2*readyShipSize + channelSize);
+    printf("///////////////\n ");*/
 }
+
+/*
+void keyManager(){
+    char *ch;
+    printf("Presione una tecla: ");
+    scanf("%c", ch);
+    if(strcmp(ch, "w") == 0){
+        if(contIzq < readyShipSize){
+            ship *s = (ship*) malloc(sizeof(ship));
+            s->velocity = defaultVel;
+            strcpy(s->type, "Normal");
+            
+            s->pos = -1;
+            s->direction = 0;
+            if(pthread_create(&th_izq[contIzq], &attr, routine, &s[0]) != 0){
+                perror("Error creating the threads");
+            };
+
+            if(pthread_join(th_izq[contIzq], NULL) != 0){
+            perror("Error joining the threads");
+            };
+        }
+
+    } else if (strcmp(ch, "s") == 0){
+
+    } else if (strcmp(ch, "x") == 0){
+        
+    } else if(strcmp(ch, "e") == 0){
+
+    } else if (strcmp(ch, "d") == 0){
+
+    } else if (strcmp(ch, "c")){
+
+    } else if (strcmp(ch, "q")){
+        return;
+    }
+    return keyManager();
+}*/
